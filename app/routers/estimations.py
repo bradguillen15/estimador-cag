@@ -1,9 +1,16 @@
+from collections.abc import AsyncIterator
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
+from fastapi.sse import EventSourceResponse, ServerSentEvent
+from starlette.concurrency import iterate_in_threadpool
 
-from app.schemas.estimations import EstimateRequest, EstimateResponse
-from app.services.llm_service import LLMService
+from app.schemas.estimations import (
+    EstimateRequest,
+    EstimateResponse,
+    EstimateStreamRequest,
+)
+from app.services.llm_service import GenerationMetrics, LLMService
 
 router = APIRouter(tags=["estimations"])
 llm_service = LLMService()
@@ -27,3 +34,37 @@ def create_estimate(body: EstimateRequest) -> EstimateResponse:
         provider=llm_service.provider,
         created_at=datetime.now(timezone.utc),
     )
+
+
+@router.post("/estimate/stream", response_class=EventSourceResponse)
+async def create_estimate_stream(
+    body: EstimateStreamRequest,
+    request: Request,
+) -> AsyncIterator[ServerSentEvent]:
+    messages = [
+        {"role": message.role, "content": message.content} for message in body.messages
+    ]
+    metrics = GenerationMetrics(model=llm_service.model)
+
+    try:
+        stream = llm_service.generate_stream(messages, metrics=metrics)
+        async for token in iterate_in_threadpool(stream):
+            if await request.is_disconnected():
+                break
+            # raw_data: texto sin JSON-encode (data= pondría comillas en el wire)
+            yield ServerSentEvent(raw_data=token, event="token")
+        else:
+            yield ServerSentEvent(
+                data={
+                    "model": metrics.model,
+                    "provider": llm_service.provider,
+                    "input_tokens": metrics.input_tokens,
+                    "output_tokens": metrics.output_tokens,
+                    "latency_seconds": metrics.latency_seconds,
+                },
+                event="done",
+            )
+    except ValueError as exc:
+        yield ServerSentEvent(data={"detail": str(exc)}, event="error")
+    except Exception as exc:
+        yield ServerSentEvent(data={"detail": str(exc)}, event="error")
