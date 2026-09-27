@@ -53,7 +53,7 @@ app/
 ├── main.py         # Composition root: app instance, router wiring, cross-cutting concerns
 ├── config.py       # Settings (pydantic-settings). The ONLY place that reads env vars.
 ├── routers/        # HTTP layer: parse, validate, delegate, map errors to status codes
-├── schemas/        # Pydantic request/response models (see §5.1 — to be extracted)
+├── schemas/        # Pydantic request/response models
 ├── services/       # Business logic. Knows nothing about HTTP.
 └── context/        # Static knowledge injected into prompts (the "C" in CAG)
 ```
@@ -205,8 +205,7 @@ already on the roadmap.
 
 ### 5.1 Add an endpoint
 
-1. Define request/response models in `app/schemas/<domain>.py` (extract the existing ones out of
-   `routers/estimations.py` the first time you touch them).
+1. Define request/response models in `app/schemas/<domain>.py`.
 2. Put the logic in a service method under `app/services/`.
 3. Add the handler to the relevant router: validate via the schema, `Depends` the service, map
    domain errors to HTTP.
@@ -281,9 +280,8 @@ Fix these opportunistically when you touch the surrounding code; do not replicat
 | 2 | All settings required → app crashes on boot with a partial `.env` | `config.py` | Defaults for `llm_provider`, `llm_model`, `app_env`, `log_level`; provider keys optional |
 | 3 | `provider` hardcoded to `"openai"`, ignoring `LLM_PROVIDER` | `services/llm_service.py` | Provider factory (§4.2) |
 | 4 | Service instantiated at import time in the router | `routers/estimations.py` | FastAPI `Depends` (§4.5) |
-| 5 | Schemas defined inside the router module | `routers/estimations.py` | Move to `app/schemas/estimations.py` |
-| 6 | `estimation` returned as an opaque Markdown blob | `routers/estimations.py` | Consider a structured response (tasks, total hours, weeks) when a consumer needs it — not before |
-| 7 | No tests, no linter, no logging | repo-wide | §8 |
+| 5 | `estimation` returned as an opaque Markdown blob | `routers/estimations.py` | Consider a structured response (tasks, total hours, weeks) when a consumer needs it — not before |
+| 6 | No tests, no linter, no logging | repo-wide | §8 |
 
 ---
 

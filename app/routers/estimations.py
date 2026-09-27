@@ -1,30 +1,13 @@
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel, Field
 
+from app.schemas.estimations import EstimateRequest, EstimateResponse
 from app.services.llm_service import LLMService
 
 router = APIRouter(tags=["estimations"])
 llm_service = LLMService()
 
-
-class EstimateRequest(BaseModel):
-    transcription: str = Field(
-        ...,
-        min_length=1,
-        description="Texto de la transcripción de la reunión a estimar",
-        examples=[
-            "En la reunión con el cliente se discutió la necesidad de una plataforma web..."
-        ],
-    )
-
-
-class EstimateResponse(BaseModel):
-    estimation: str
-    model: str
-    provider: str
-    created_at: datetime
 
 @router.post("/estimate", response_model=EstimateResponse)
 def create_estimate(body: EstimateRequest) -> EstimateResponse:
