@@ -50,12 +50,13 @@ in the same commit.
 
 ```
 app/
-├── main.py         # Composition root: app instance, router wiring, cross-cutting concerns
-├── config.py       # Settings (pydantic-settings). The ONLY place that reads env vars.
-├── routers/        # HTTP layer: parse, validate, delegate, map errors to status codes
-├── schemas/        # Pydantic request/response models
-├── services/       # Business logic. Knows nothing about HTTP.
-└── context/        # Static knowledge injected into prompts (the "C" in CAG)
+├── main.py              # Composition root: app, routers, middleware, logging boot
+├── config.py            # Settings (pydantic-settings). The ONLY place that reads env vars.
+├── logging_config.py    # Structlog dual config (console / JSON) + cost helper
+├── routers/             # HTTP layer: parse, validate, delegate, map errors to status codes
+├── schemas/             # Pydantic request/response models
+├── services/            # Business logic. Knows nothing about HTTP.
+└── context/             # Static knowledge injected into prompts (the "C" in CAG)
 ```
 
 ### 3.2 The dependency rule
@@ -277,11 +278,11 @@ Fix these opportunistically when you touch the surrounding code; do not replicat
 | # | Issue | Location | Fix |
 |---|---|---|---|
 | 1 | Typos in setting names: `open_api_key`, `antropic_api_key` | `config.py`, `.env.example` | Rename to `openai_api_key` / `anthropic_api_key` (both files, same commit) |
-| 2 | All settings required → app crashes on boot with a partial `.env` | `config.py` | Defaults for `llm_provider`, `llm_model`, `app_env`, `log_level`; provider keys optional |
+| 2 | All settings required → app crashes on boot with a partial `.env` | `config.py` | Defaults for non-secrets if desired; provider keys optional — intentionally left required for now |
 | 3 | `provider` hardcoded to `"openai"`, ignoring `LLM_PROVIDER` | `services/llm_service.py` | Provider factory (§4.2) |
 | 4 | Service instantiated at import time in the router | `routers/estimations.py` | FastAPI `Depends` (§4.5) |
 | 5 | `estimation` returned as an opaque Markdown blob | `routers/estimations.py` | Consider a structured response (tasks, total hours, weeks) when a consumer needs it — not before |
-| 6 | No tests, no linter, no logging | repo-wide | §8 |
+| 6 | ~~No logging~~; still no tests/linter | repo-wide | Structlog base done; tests/linter → §8 |
 
 ---
 

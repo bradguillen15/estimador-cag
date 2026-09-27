@@ -1,6 +1,13 @@
-from fastapi import FastAPI
+from uuid import uuid4
 
+import structlog
+from fastapi import FastAPI, Request, Response
+from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
+
+from app.logging_config import configure_logging
 from app.routers import estimations
+
+configure_logging()
 
 app = FastAPI(
     title="Estimador CAG",
@@ -13,6 +20,25 @@ app = FastAPI(
     version="0.1.0",
 )
 
+
+class RequestContextMiddleware(BaseHTTPMiddleware):
+    async def dispatch(
+        self,
+        request: Request,
+        call_next: RequestResponseEndpoint,
+    ) -> Response:
+        structlog.contextvars.clear_contextvars()
+        structlog.contextvars.bind_contextvars(
+            request_id=str(uuid4()),
+            endpoint=request.url.path,
+        )
+        try:
+            return await call_next(request)
+        finally:
+            structlog.contextvars.clear_contextvars()
+
+
+app.add_middleware(RequestContextMiddleware)
 app.include_router(estimations.router, prefix="/api/v1")
 
 

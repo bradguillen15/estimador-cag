@@ -7,8 +7,9 @@ Estimador de costos con **CAG** (Cache-Augmented Generation).
 ```
 estimador-cag/
 ├── app/
-│   ├── main.py              # Entrypoint FastAPI
+│   ├── main.py              # Entrypoint FastAPI + middleware request_id
 │   ├── config.py            # Settings (pydantic-settings)
+│   ├── logging_config.py    # Structlog (consola / JSON)
 │   ├── routers/             # Endpoints HTTP / SSE
 │   ├── schemas/             # Contratos request/response (Pydantic)
 │   ├── services/            # Lógica de negocio (LLM)
@@ -50,6 +51,15 @@ En el sidebar de Streamlit eliges el endpoint:
 
 - **SSE** → `POST /api/v1/estimate/stream` (historial completo, tokens en vivo)
 - **JSON** → `POST /api/v1/estimate` (solo el último mensaje, respuesta completa)
+
+## Logging
+
+Structured logs con **structlog** en cada llamada al LLM (`llm_call_started` /
+`llm_call_completed` / `llm_call_failed`), con `request_id` por request HTTP.
+
+- `APP_ENV=development` → consola legible
+- `APP_ENV=production` → JSON (una línea por evento)
+- `LOG_LEVEL=INFO` (requerido en `.env`, sin default en código)
 
 ## Endpoints
 
