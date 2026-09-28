@@ -1,0 +1,15 @@
+{
+  "name": "estimador-cag",
+  "private": true,
+  "description": "Root task runner: orchestrates the Python API (uv) and the React UI (web/).",
+  "scripts": {
+    "dev": "node scripts/dev.mjs",
+    "dev:api": "uv run uvicorn app.main:app --reload",
+    "dev:web": "npm --prefix web run dev",
+    "test": "npm run test:api && npm run test:web",
+    "test:api": "uv run pytest",
+    "test:web": "npm --prefix web test",
+    "test:watch": "npm --prefix web run test:watch",
+    "test:coverage": "uv run pytest --cov=app --cov-report=term-missing && npm --prefix web run test:coverage"
+  }
+}
