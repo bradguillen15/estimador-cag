@@ -4,7 +4,7 @@
   "description": "Root task runner: orchestrates the Python API (uv) and the React UI (web/).",
   "packageManager": "pnpm@10.33.1",
   "engines": {
-    "node": ">=20.18",
+    "node": ">=24",
     "pnpm": ">=10",
     "npm": "use-pnpm-instead"
   },

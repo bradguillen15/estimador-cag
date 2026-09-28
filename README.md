@@ -17,12 +17,14 @@ Markdown estimate (assumptions, task breakdown, total hours, team and duration).
 ## Requirements
 
 - Python 3.13 with [uv](https://docs.astral.sh/uv/)
-- Node 20+ and **pnpm 10** (the repo is a pnpm workspace; `npm install` is blocked on purpose)
+- **Node 24 LTS** (pinned in `.nvmrc`: run `nvm use`) and **pnpm 10** (the repo is a pnpm workspace;
+  `npm install` is blocked on purpose). With Node 24, `corepack enable pnpm` installs the pinned pnpm.
 - An OpenAI API key
 
 ## Setup
 
 ```bash
+nvm use                # Node 24 from .nvmrc
 uv sync                # Python dependencies
 pnpm install           # JS dependencies (whole workspace) + the pre-commit hook
 cp .env.example .env   # then set OPEN_API_KEY

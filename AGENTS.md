@@ -30,6 +30,7 @@ more context sources) **without rewriting it**.
 | Package manager | `uv` (lockfile: `uv.lock`) |
 | Web | FastAPI + Uvicorn |
 | Frontend | React 19 + TypeScript + Tailwind v4 on Vite 6 (`web/`) |
+| Node | **24 LTS**, pinned in `.nvmrc` (CI reads the same file) |
 | JS package manager | **pnpm 10** workspace (root + `web/`, one `pnpm-lock.yaml`). npm/yarn are blocked. |
 | Config | pydantic-settings |
 | LLM SDK | `openai` |
