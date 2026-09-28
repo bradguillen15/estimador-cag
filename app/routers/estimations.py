@@ -4,11 +4,7 @@ from fastapi import APIRouter, HTTPException, Request
 from fastapi.sse import EventSourceResponse, ServerSentEvent
 from starlette.concurrency import iterate_in_threadpool
 
-from app.schemas.estimations import (
-    EstimationRequest,
-    EstimationResponse,
-    EstimateStreamRequest,
-)
+from app.schemas.estimations import EstimationRequest, EstimationResponse
 from app.services.llm_service import GenerationMetrics, LLMService, PROMPT_VERSION
 
 router = APIRouter(tags=["estimations"])
@@ -32,20 +28,16 @@ def create_estimate(body: EstimationRequest) -> EstimationResponse:
 
 @router.post("/estimate/stream", response_class=EventSourceResponse)
 async def create_estimate_stream(
-    body: EstimateStreamRequest,
+    body: EstimationRequest,
     request: Request,
 ) -> AsyncIterator[ServerSentEvent]:
-    messages = [
-        {"role": message.role, "content": message.content} for message in body.messages
-    ]
     metrics = GenerationMetrics(model=llm_service.model)
 
     try:
-        stream = llm_service.generate_stream(messages, metrics=metrics)
+        stream = llm_service.generate_stream_from_request(body, metrics=metrics)
         async for token in iterate_in_threadpool(stream):
             if await request.is_disconnected():
                 break
-            # data= JSON-encodes the string so spaces/newlines survive the SSE wire
             yield ServerSentEvent(data=token, event="token")
         else:
             yield ServerSentEvent(
@@ -55,6 +47,7 @@ async def create_estimate_stream(
                     "input_tokens": metrics.input_tokens,
                     "output_tokens": metrics.output_tokens,
                     "latency_seconds": metrics.latency_seconds,
+                    "prompt_version": PROMPT_VERSION,
                 },
                 event="done",
             )

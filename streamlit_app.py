@@ -43,15 +43,6 @@ _OUTPUT_FORMAT_LABELS = {
 }
 
 
-def _user_content(payload: EstimationRequest) -> str:
-    return (
-        f"Tipo de proyecto: {payload.project_type.value}\n"
-        f"Nivel de detalle: {payload.detail_level.value}\n"
-        f"Formato de salida: {payload.output_format.value}\n\n"
-        f"Descripción del proyecto:\n{payload.description.strip()}"
-    )
-
-
 def _post_estimate(payload: EstimationRequest) -> EstimationResponse:
     response = httpx.post(
         f"{API_URL}/api/v1/estimate",
@@ -67,7 +58,7 @@ def _stream_estimate(payload: EstimationRequest) -> Iterator[str]:
     with httpx.stream(
         "POST",
         f"{API_URL}/api/v1/estimate/stream",
-        json={"messages": [{"role": "user", "content": _user_content(payload)}]},
+        json=payload.model_dump(mode="json"),
         timeout=None,
     ) as response:
         response.raise_for_status()

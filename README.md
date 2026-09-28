@@ -10,10 +10,11 @@ estimador-cag/
 │   ├── main.py              # Entrypoint FastAPI + middleware request_id
 │   ├── config.py            # Settings (pydantic-settings)
 │   ├── logging_config.py    # Structlog (consola / JSON)
+│   ├── prompts/             # Plantillas Jinja2 (estimation/v1/…)
 │   ├── routers/             # Endpoints HTTP / SSE
 │   ├── schemas/             # Contratos request/response (Pydantic)
 │   ├── services/            # Lógica de negocio (LLM)
-│   └── context/             # Datos estáticos para el prompt
+│   └── context/             # Datos estáticos legacy (sidebar)
 ├── streamlit_app.py         # Frontend Streamlit (consume la API)
 ├── .env                     # Secretos locales (no commitear)
 ├── .env.example

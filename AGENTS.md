@@ -53,10 +53,11 @@ app/
 ├── main.py              # Composition root: app, routers, middleware, logging boot
 ├── config.py            # Settings (pydantic-settings). The ONLY place that reads env vars.
 ├── logging_config.py    # Structlog dual config (console / JSON) + cost helper
+├── prompts/             # Jinja2 templates + loader (estimation/<version>/)
 ├── routers/             # HTTP layer: parse, validate, delegate, map errors to status codes
 ├── schemas/             # Pydantic request/response models
 ├── services/            # Business logic. Knows nothing about HTTP.
-└── context/             # Static knowledge injected into prompts (the "C" in CAG)
+└── context/             # Legacy static examples (sidebar); prompts live in prompts/
 ```
 
 ### 3.2 The dependency rule
@@ -82,7 +83,7 @@ patch around it.
 | HTTP status codes | `routers/` | Only place that knows about 400/502/… |
 | Input shape validation | `schemas/` (Pydantic) | Declarative constraints, not `if` statements in the router |
 | Domain rules / errors | `services/` | Raise domain exceptions, let the router translate them |
-| Prompt text & assembly | `context/` + prompt builder | Never inline a prompt string in a router |
+| Prompt text & assembly | `prompts/` + `prompts/loader.py` | Never inline a prompt string in a router |
 | Provider SDK calls | `services/llm/<provider>.py` | One file per provider, one class per provider |
 | Env vars & secrets | `config.py` | `os.getenv` anywhere else is a bug |
 
@@ -223,8 +224,13 @@ already on the roadmap.
 
 ### 5.3 Add / change prompt context (CAG)
 
-- Examples live in `app/context/examples.py` as data, matching the existing
-  `{"meeting_summary": ..., "estimation": ...}` shape.
+- Prompts live in `app/prompts/estimation/<version>/` (`system.j2`, `examples.j2`, `user.j2`).
+  Changing wording or examples in a way that alters output → new version folder + bump
+  `PROMPT_VERSION`.
+- `system.j2` must stay **static** (no request variables): an identical prefix on every request is
+  what lets the provider cache it. Request-specific parameters go in `user.j2`.
+- Each example declares its parameters (type · detail · format); keep at least one example per
+  `output_format` so the few-shots never contradict the requested format.
 - Keep examples **consistent with the mandatory output format** in the prompt; if they diverge, fix
   the examples rather than adding compensating instructions.
 - Context grows the token bill on *every* request. Before adding an example, ask whether it teaches

@@ -1,7 +1,6 @@
 """Contratos de request/response para el endpoint de estimaciones."""
 
 from enum import Enum
-from typing import Literal
 
 from pydantic import BaseModel, Field
 
@@ -35,12 +34,3 @@ class EstimationRequest(BaseModel):
 class EstimationResponse(BaseModel):
     text: str
     prompt_version: str
-
-
-class ChatMessage(BaseModel):
-    role: Literal["user", "assistant"]
-    content: str = Field(min_length=1)
-
-
-class EstimateStreamRequest(BaseModel):
-    messages: list[ChatMessage] = Field(min_length=1)
