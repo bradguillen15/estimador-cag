@@ -1,25 +1,24 @@
 from collections.abc import AsyncIterator
-from datetime import datetime, timezone
 
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.sse import EventSourceResponse, ServerSentEvent
 from starlette.concurrency import iterate_in_threadpool
 
 from app.schemas.estimations import (
-    EstimateRequest,
-    EstimateResponse,
+    EstimationRequest,
+    EstimationResponse,
     EstimateStreamRequest,
 )
-from app.services.llm_service import GenerationMetrics, LLMService
+from app.services.llm_service import GenerationMetrics, LLMService, PROMPT_VERSION
 
 router = APIRouter(tags=["estimations"])
 llm_service = LLMService()
 
 
-@router.post("/estimate", response_model=EstimateResponse)
-def create_estimate(body: EstimateRequest) -> EstimateResponse:
+@router.post("/estimate", response_model=EstimationResponse)
+def create_estimate(body: EstimationRequest) -> EstimationResponse:
     try:
-        estimation = llm_service.generate(body.transcription)
+        text = llm_service.generate_from_request(body)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except Exception as exc:
@@ -28,12 +27,7 @@ def create_estimate(body: EstimateRequest) -> EstimateResponse:
             detail=f"Error al generar la estimación con el proveedor LLM: {exc}",
         ) from exc
 
-    return EstimateResponse(
-        estimation=estimation,
-        model=llm_service.model,
-        provider=llm_service.provider,
-        created_at=datetime.now(timezone.utc),
-    )
+    return EstimationResponse(text=text, prompt_version=PROMPT_VERSION)
 
 
 @router.post("/estimate/stream", response_class=EventSourceResponse)
@@ -51,8 +45,8 @@ async def create_estimate_stream(
         async for token in iterate_in_threadpool(stream):
             if await request.is_disconnected():
                 break
-            # raw_data: texto sin JSON-encode (data= pondría comillas en el wire)
-            yield ServerSentEvent(raw_data=token, event="token")
+            # data= JSON-encodes the string so spaces/newlines survive the SSE wire
+            yield ServerSentEvent(data=token, event="token")
         else:
             yield ServerSentEvent(
                 data={

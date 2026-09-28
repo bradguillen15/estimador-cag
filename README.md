@@ -39,7 +39,7 @@ Terminal 1 — API (FastAPI):
 uv run uvicorn app.main:app --reload
 ```
 
-Terminal 2 — Chat (Streamlit como FE):
+Terminal 2 — Formulario (Streamlit como FE):
 
 ```bash
 uv run streamlit run streamlit_app.py
@@ -47,10 +47,8 @@ uv run streamlit run streamlit_app.py
 
 Opcional: `ESTIMADOR_API_URL=http://127.0.0.1:8000` (default si no se define).
 
-En el sidebar de Streamlit eliges el endpoint:
-
-- **SSE** → `POST /api/v1/estimate/stream` (historial completo, tokens en vivo)
-- **JSON** → `POST /api/v1/estimate` (solo el último mensaje, respuesta completa)
+Streamlit envía un `EstimationRequest` (descripción + tipo + detalle + formato)
+vía `POST /api/v1/estimate`.
 
 ## Logging
 
@@ -66,11 +64,16 @@ Structured logs con **structlog** en cada llamada al LLM (`llm_call_started` /
 | Método | Ruta | Respuesta |
 |--------|------|-----------|
 | `GET` | `/health` | `{"status": "ok"}` |
-| `POST` | `/api/v1/estimate` | JSON con la estimación completa |
+| `POST` | `/api/v1/estimate` | `EstimationResponse` (`text`, `prompt_version`) |
 | `POST` | `/api/v1/estimate/stream` | SSE (`token` / `done` / `error`) |
 
 ```bash
-curl -N -X POST http://127.0.0.1:8000/api/v1/estimate/stream \
+curl -X POST http://127.0.0.1:8000/api/v1/estimate \
   -H 'Content-Type: application/json' \
-  -d '{"messages":[{"role":"user","content":"Necesitamos un MVP web..."}]}'
+  -d '{
+    "description": "MVP web de e-commerce con catálogo, carrito y pagos Stripe",
+    "project_type": "web_saas",
+    "detail_level": "medium",
+    "output_format": "phases_table"
+  }'
 ```

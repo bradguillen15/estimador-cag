@@ -11,8 +11,11 @@ from openai import OpenAI
 from app.config import settings
 from app.context.examples import ESTIMATION_EXAMPLES
 from app.logging_config import estimate_cost_usd
+from app.schemas.estimations import EstimationRequest
 
 logger = structlog.get_logger()
+
+PROMPT_VERSION = "v1"
 
 
 @dataclass
@@ -119,6 +122,16 @@ class LLMService:
             {"role": "system", "content": self.system_prompt},
             *turns,
         ]
+
+    def generate_from_request(self, request: EstimationRequest) -> str:
+        """Builds a plain user message from the form contract and calls the LLM."""
+        user_content = (
+            f"Tipo de proyecto: {request.project_type.value}\n"
+            f"Nivel de detalle: {request.detail_level.value}\n"
+            f"Formato de salida: {request.output_format.value}\n\n"
+            f"Descripción del proyecto:\n{request.description.strip()}"
+        )
+        return self.generate(user_content)
 
     def generate(self, meeting_transcript: str) -> str:
         call_logger = logger.bind(model=self.model, provider=self.provider, stream=False)

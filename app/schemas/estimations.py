@@ -1,27 +1,40 @@
 """Contratos de request/response para el endpoint de estimaciones."""
 
-from datetime import datetime
+from enum import Enum
 from typing import Literal
 
 from pydantic import BaseModel, Field
 
 
-class EstimateRequest(BaseModel):
-    transcription: str = Field(
-        ...,
-        min_length=1,
-        description="Texto de la transcripción de la reunión a estimar",
-        examples=[
-            "En la reunión con el cliente se discutió la necesidad de una plataforma web..."
-        ],
-    )
+class ProjectType(str, Enum):
+    MOBILE_APP = "mobile_app"
+    WEB_SAAS = "web_saas"
+    INTERNAL_TOOL = "internal_tool"
+    DATA_PIPELINE = "data_pipeline"
 
 
-class EstimateResponse(BaseModel):
-    estimation: str
-    model: str
-    provider: str
-    created_at: datetime
+class DetailLevel(str, Enum):
+    SUMMARY = "summary"
+    MEDIUM = "medium"
+    DETAILED = "detailed"
+
+
+class OutputFormat(str, Enum):
+    PHASES_TABLE = "phases_table"
+    LINE_ITEMS = "line_items"
+    NARRATIVE = "narrative"
+
+
+class EstimationRequest(BaseModel):
+    description: str = Field(min_length=20, max_length=2000)
+    project_type: ProjectType
+    detail_level: DetailLevel
+    output_format: OutputFormat
+
+
+class EstimationResponse(BaseModel):
+    text: str
+    prompt_version: str
 
 
 class ChatMessage(BaseModel):

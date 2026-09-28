@@ -1,49 +1,73 @@
-"""Frontend Streamlit: consulta la API FastAPI (JSON o SSE)."""
+"""Frontend Streamlit: formulario que POST /estimate (JSON o SSE)."""
 
 from __future__ import annotations
 
 import json
 import os
 from collections.abc import Iterator
-from dataclasses import dataclass
 
 import httpx
 import streamlit as st
 from dotenv import load_dotenv
 
 from app.context.examples import ESTIMATION_EXAMPLES
+from app.schemas.estimations import (
+    DetailLevel,
+    EstimationRequest,
+    EstimationResponse,
+    OutputFormat,
+    ProjectType,
+)
+from app.services.llm_service import PROMPT_VERSION
 
 load_dotenv()
 API_URL = os.getenv("ESTIMADOR_API_URL", "http://127.0.0.1:8000")
 
+_PROJECT_TYPE_LABELS = {
+    ProjectType.MOBILE_APP: "App móvil",
+    ProjectType.WEB_SAAS: "Web / SaaS",
+    ProjectType.INTERNAL_TOOL: "Herramienta interna",
+    ProjectType.DATA_PIPELINE: "Pipeline de datos",
+}
 
-@dataclass
-class CallMetrics:
-    model: str
-    provider: str | None = None
-    input_tokens: int | None = None
-    output_tokens: int | None = None
-    latency_seconds: float | None = None
+_DETAIL_LEVEL_LABELS = {
+    DetailLevel.SUMMARY: "Resumen",
+    DetailLevel.MEDIUM: "Medio",
+    DetailLevel.DETAILED: "Detallado",
+}
+
+_OUTPUT_FORMAT_LABELS = {
+    OutputFormat.PHASES_TABLE: "Tabla por fases",
+    OutputFormat.LINE_ITEMS: "Partidas / line items",
+    OutputFormat.NARRATIVE: "Narrativo",
+}
 
 
-def _estimate_json(transcription: str) -> tuple[str, CallMetrics]:
+def _user_content(payload: EstimationRequest) -> str:
+    return (
+        f"Tipo de proyecto: {payload.project_type.value}\n"
+        f"Nivel de detalle: {payload.detail_level.value}\n"
+        f"Formato de salida: {payload.output_format.value}\n\n"
+        f"Descripción del proyecto:\n{payload.description.strip()}"
+    )
+
+
+def _post_estimate(payload: EstimationRequest) -> EstimationResponse:
     response = httpx.post(
         f"{API_URL}/api/v1/estimate",
-        json={"transcription": transcription},
+        json=payload.model_dump(mode="json"),
         timeout=120.0,
     )
     response.raise_for_status()
-    payload = response.json()
-    metrics = CallMetrics(model=payload["model"], provider=payload.get("provider"))
-    return payload["estimation"], metrics
+    return EstimationResponse.model_validate(response.json())
 
 
-def _estimate_sse(messages: list[dict[str, str]]) -> Iterator[str]:
-    """Yields text tokens; stores metrics from the `done` event in session_state."""
+def _stream_estimate(payload: EstimationRequest) -> Iterator[str]:
+    """Yields tokens from POST /api/v1/estimate/stream."""
     with httpx.stream(
         "POST",
         f"{API_URL}/api/v1/estimate/stream",
-        json={"messages": messages},
+        json={"messages": [{"role": "user", "content": _user_content(payload)}]},
         timeout=None,
     ) as response:
         response.raise_for_status()
@@ -57,40 +81,30 @@ def _estimate_sse(messages: list[dict[str, str]]) -> Iterator[str]:
             if not line.startswith("data:"):
                 continue
 
-            data = line.removeprefix("data:").lstrip()
+            # SSE: after "data:" there is at most one protocol space.
+            data = line.removeprefix("data:")
+            if data.startswith(" "):
+                data = data[1:]
             if event_name == "token":
-                yield data
+                # Server sends JSON-encoded strings so "\n" and leading spaces survive
+                yield json.loads(data)
             elif event_name == "error":
                 detail = json.loads(data).get("detail", data)
                 raise RuntimeError(detail)
-            elif event_name == "done":
-                done = json.loads(data)
-                st.session_state.last_metrics = CallMetrics(
-                    model=done.get("model", "—"),
-                    provider=done.get("provider"),
-                    input_tokens=done.get("input_tokens"),
-                    output_tokens=done.get("output_tokens"),
-                    latency_seconds=done.get("latency_seconds"),
-                )
             event_name = "message"
 
 
-def _render_sidebar() -> str:
+def _render_sidebar() -> bool:
     with st.sidebar:
         st.header("API")
         st.caption(f"Base URL: `{API_URL}`")
-        mode = st.radio(
-            "Endpoint",
-            options=["stream", "json"],
-            format_func=lambda value: {
-                "stream": "SSE — /api/v1/estimate/stream",
-                "json": "JSON — /api/v1/estimate",
-            }[value],
-            help=(
-                "SSE envía el historial completo (multi-turno). "
-                "JSON envía solo el último mensaje del usuario."
-            ),
+        use_stream = st.toggle(
+            "Streaming (SSE)",
+            value=False,
+            help="Off → POST /estimate (JSON). On → POST /estimate/stream (SSE).",
         )
+        mode_label = "SSE" if use_stream else "JSON"
+        st.caption(f"{mode_label} — mismo formulario, distinto endpoint.")
 
         st.header("Contexto CAG")
         st.caption("Ejemplos inyectados en el system prompt del servidor.")
@@ -104,82 +118,86 @@ def _render_sidebar() -> str:
                 if index < len(ESTIMATION_EXAMPLES):
                     st.divider()
 
-    return mode
-
-
-def _render_last_call_metrics(slot) -> None:
-    with slot.container():
-        st.subheader("Última llamada")
-        metrics: CallMetrics | None = st.session_state.get("last_metrics")
-        if metrics is None:
-            st.caption("Aún no hay llamadas en esta sesión.")
-            return
-
-        st.metric("Modelo", metrics.model)
-        if metrics.provider:
-            st.metric("Provider", metrics.provider)
-        st.metric(
-            "Tokens entrada",
-            metrics.input_tokens if metrics.input_tokens is not None else "—",
-        )
-        st.metric(
-            "Tokens salida",
-            metrics.output_tokens if metrics.output_tokens is not None else "—",
-        )
-        latency = (
-            f"{metrics.latency_seconds:.2f} s"
-            if metrics.latency_seconds is not None
-            else "—"
-        )
-        st.metric("Tiempo de respuesta", latency)
+    return use_stream
 
 
 st.set_page_config(page_title="Estimador CAG", page_icon="📋", layout="centered")
 st.title("Estimador de software")
 st.caption(
-    "Frontend Streamlit sobre la API FastAPI. "
-    "Pega una transcripción o continúa la conversación."
+    "Describe el proyecto y elige tipo, detalle y formato. "
+    "El formulario construye un `EstimationRequest` y lo envía al servicio."
 )
 
-mode = _render_sidebar()
-metrics_slot = st.sidebar.empty()
+use_stream = _render_sidebar()
 
-if "messages" not in st.session_state:
-    st.session_state.messages = []
-if "last_metrics" not in st.session_state:
-    st.session_state.last_metrics = None
+with st.form("estimation_form"):
+    description = st.text_area(
+        "Descripción del proyecto",
+        height=160,
+        placeholder=(
+            "Ej.: Necesitamos un MVP web de e-commerce con catálogo, carrito, "
+            "pagos y panel de administración…"
+        ),
+        help="Entre 20 y 2000 caracteres.",
+    )
+    project_type = st.selectbox(
+        "Tipo de proyecto",
+        options=list(ProjectType),
+        format_func=lambda value: _PROJECT_TYPE_LABELS[value],
+    )
+    detail_level = st.selectbox(
+        "Nivel de detalle",
+        options=list(DetailLevel),
+        format_func=lambda value: _DETAIL_LEVEL_LABELS[value],
+        index=1,
+    )
+    output_format = st.selectbox(
+        "Formato de salida",
+        options=list(OutputFormat),
+        format_func=lambda value: _OUTPUT_FORMAT_LABELS[value],
+    )
+    submitted = st.form_submit_button("Generar estimación", type="primary")
 
-_render_last_call_metrics(metrics_slot)
-
-for message in st.session_state.messages:
-    with st.chat_message(message["role"]):
-        st.markdown(message["content"])
-
-if prompt := st.chat_input("Transcripción o seguimiento (ej. reduce el alcance)…"):
-    st.session_state.messages.append({"role": "user", "content": prompt})
-    with st.chat_message("user"):
-        st.markdown(prompt)
-
-    with st.chat_message("assistant"):
+if submitted:
+    try:
+        request = EstimationRequest(
+            description=description.strip(),
+            project_type=project_type,
+            detail_level=detail_level,
+            output_format=output_format,
+        )
+    except Exception as exc:
+        st.error(f"Datos inválidos: {exc}")
+    else:
         try:
-            if mode == "stream":
-                estimation = st.write_stream(
-                    _estimate_sse(st.session_state.messages)
+            if use_stream:
+                st.subheader("Estimación")
+                text = st.write_stream(_stream_estimate(request))
+                st.session_state["last_estimation"] = EstimationResponse(
+                    text=text or "",
+                    prompt_version=PROMPT_VERSION,
                 )
             else:
-                estimation, call_metrics = _estimate_json(prompt)
-                st.session_state.last_metrics = call_metrics
-                st.markdown(estimation)
-            _render_last_call_metrics(metrics_slot)
+                with st.spinner("Generando estimación…"):
+                    st.session_state["last_estimation"] = _post_estimate(request)
         except httpx.ConnectError:
-            estimation = (
-                f"⚠️ No se pudo conectar a la API en `{API_URL}`. "
+            st.error(
+                f"No se pudo conectar a la API en `{API_URL}`. "
                 "Levanta el servicio con: "
                 "`uv run uvicorn app.main:app --reload`"
             )
-            st.markdown(estimation)
+        except httpx.HTTPStatusError as exc:
+            detail = exc.response.text
+            try:
+                detail = exc.response.json().get("detail", detail)
+            except Exception:
+                pass
+            st.error(f"Error HTTP {exc.response.status_code}: {detail}")
         except Exception as exc:
-            estimation = f"⚠️ Error al generar la estimación: {exc}"
-            st.markdown(estimation)
+            st.error(f"Error al generar la estimación: {exc}")
 
-    st.session_state.messages.append({"role": "assistant", "content": estimation})
+result: EstimationResponse | None = st.session_state.get("last_estimation")
+if result is not None and not (submitted and use_stream):
+    st.subheader("Estimación")
+    st.caption(f"prompt_version: `{result.prompt_version}`")
+    st.markdown(result.text)
