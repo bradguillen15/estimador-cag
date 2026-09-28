@@ -13,9 +13,17 @@ estimador-cag/
 │   ├── prompts/             # Plantillas Jinja2 (estimation/v1/…)
 │   ├── routers/             # Endpoints HTTP / SSE
 │   ├── schemas/             # Contratos request/response (Pydantic)
-│   ├── services/            # Lógica de negocio (LLM)
-│   └── context/             # Datos estáticos legacy (sidebar)
-├── streamlit_app.py         # Frontend Streamlit (consume la API)
+│   ├── services/            # Caso de uso + proveedores LLM (services/llm/)
+│   ├── dependencies.py      # Inyección de dependencias (Depends)
+│   └── exceptions.py        # Errores de dominio → HTTP
+├── tests/                   # Tests de la API (pytest, LLM siempre simulado)
+├── web/                     # Frontend React + TypeScript + Tailwind (Vite)
+│   └── src/
+│       ├── api/             # Cliente HTTP/SSE + tipos (espejo de app/schemas)
+│       ├── components/      # Sidebar, formulario, resultado, tema
+│       ├── hooks/           # useEstimation (JSON/SSE), useTheme (claro/oscuro)
+│       └── test/            # setup de Vitest y fixtures
+├── package.json             # Scripts raíz (tests de API + UI)
 ├── .env                     # Secretos locales (no commitear)
 ├── .env.example
 ├── pyproject.toml
@@ -27,29 +35,60 @@ estimador-cag/
 ```bash
 # Desde estimador-cag/
 uv sync
-cp .env.example .env   # y completa OPENAI_API_KEY
+cp .env.example .env   # y completa OPEN_API_KEY
+npm --prefix web install
 ```
+
+Requiere Python 3.13 (`uv`) y Node 20+.
 
 ## Run
 
-Necesitas **los dos procesos**: la API y el frontend.
-
-Terminal 1 — API (FastAPI):
+### Desarrollo
 
 ```bash
-uv run uvicorn app.main:app --reload
+npm run dev
 ```
 
-Terminal 2 — Formulario (Streamlit como FE):
+Levanta la API (FastAPI con `--reload`, :8000) y la UI (Vite, http://localhost:5173)
+en una sola terminal, con logs prefijados `[api]` / `[web]`. `Ctrl+C` detiene ambos, y si
+uno de los dos falla (p. ej. el puerto 8000 ocupado) el otro se detiene también.
+
+Por separado: `npm run dev:api` y `npm run dev:web`.
+
+Vite hace proxy de `/api` y `/health` a `http://127.0.0.1:8000`, así que la UI usa
+URLs relativas y no hace falta CORS. El formulario envía un `EstimationRequest`
+a `POST /api/v1/estimate` (JSON) o `POST /api/v1/estimate/stream` (SSE) según el
+interruptor de la barra lateral.
+
+### Un solo proceso (build)
 
 ```bash
-uv run streamlit run streamlit_app.py
+npm --prefix web run build
+uv run uvicorn app.main:app
 ```
 
-Opcional: `ESTIMADOR_API_URL=http://127.0.0.1:8000` (default si no se define).
+Si existe `web/dist`, FastAPI sirve la UI en `/` (la API, `/health` y `/docs` tienen prioridad).
 
-Streamlit envía un `EstimationRequest` (descripción + tipo + detalle + formato)
-vía `POST /api/v1/estimate`.
+## Tests
+
+```bash
+npm test               # API (pytest) + UI (Vitest), desde la raíz
+npm run test:watch     # UI en modo watch
+npm run test:coverage  # cobertura de ambos
+```
+
+Los tests nunca llaman al LLM real: la API usa un proveedor falso y la UI simula `web/src/api/client.ts`.
+
+## Flujo de trabajo (PRs)
+
+`main` está protegida: no se puede hacer push directo (tampoco los admins) y todo cambio entra por
+pull request. Para mergear, el PR debe pasar los checks de CI (`.github/workflows/ci.yml`) y estar
+al día con `main`:
+
+- `api-tests` — `uv sync --locked` + `pytest`
+- `web-tests` — `npm ci` + lint + Vitest + build (incluye type-check)
+
+[CodeRabbit](https://coderabbit.ai) revisa cada PR con las reglas de `.coderabbit.yaml`.
 
 ## Logging
 
@@ -67,6 +106,7 @@ Structured logs con **structlog** en cada llamada al LLM (`llm_call_started` /
 | `GET` | `/health` | `{"status": "ok"}` |
 | `POST` | `/api/v1/estimate` | `EstimationResponse` (`text`, `prompt_version`) |
 | `POST` | `/api/v1/estimate/stream` | SSE (`token` / `done` / `error`) |
+| `GET` | `/api/v1/context` | `PromptContextResponse` (`prompt_version`, `examples_markdown`) |
 
 ```bash
 curl -X POST http://127.0.0.1:8000/api/v1/estimate \

@@ -29,13 +29,19 @@ more context sources) **without rewriting it**.
 | Python | 3.13 (`.python-version`) |
 | Package manager | `uv` (lockfile: `uv.lock`) |
 | Web | FastAPI + Uvicorn |
+| Frontend | React 19 + TypeScript + Tailwind v4 on Vite 6 (`web/`, npm) |
 | Config | pydantic-settings |
 | LLM SDK | `openai` |
 
 ```bash
 uv sync                                    # install deps
 cp .env.example .env                       # then fill the keys
-uv run uvicorn app.main:app --reload       # run (http://127.0.0.1:8000/docs)
+npm run dev                                # run API + UI together (Ctrl+C stops both)
+uv run uvicorn app.main:app --reload       # run API (http://127.0.0.1:8000/docs)
+npm --prefix web install                   # install UI deps
+npm --prefix web run dev                   # run UI (http://localhost:5173, proxies /api → :8000)
+npm --prefix web run build                 # build UI → web/dist, served by FastAPI at /
+npm --prefix web run lint                  # ESLint (build also type-checks with tsc)
 uv add <pkg>                               # add a dependency (never edit pyproject by hand)
 ```
 
@@ -50,14 +56,24 @@ in the same commit.
 
 ```
 app/
-├── main.py              # Composition root: app, routers, middleware, logging boot
+├── main.py              # Composition root: app, routers, middleware, exception handlers, logging boot
 ├── config.py            # Settings (pydantic-settings). The ONLY place that reads env vars.
+├── dependencies.py      # FastAPI Depends providers (get_estimation_service) — overridable in tests
+├── exceptions.py        # Domain errors (EstimationError → PromptTemplateError / LLMProviderError)
 ├── logging_config.py    # Structlog dual config (console / JSON) + cost helper
 ├── prompts/             # Jinja2 templates + loader (estimation/<version>/)
 ├── routers/             # HTTP layer: parse, validate, delegate, map errors to status codes
 ├── schemas/             # Pydantic request/response models
-├── services/            # Business logic. Knows nothing about HTTP.
-└── context/             # Legacy static examples (sidebar); prompts live in prompts/
+└── services/            # Business logic. Knows nothing about HTTP.
+    ├── estimation_service.py   # Use case: render prompts, delegate to the provider
+    └── llm/                    # base.py (Protocols) · openai.py (only SDK user) · factory.py
+
+tests/                   # pytest: prompts, schemas, provider (fake SDK client), service, routes
+
+web/src/                 # React UI — talks to the API over HTTP only, never imports Python
+├── api/                 # client.ts (fetch + SSE parser) and types.ts (mirror of app/schemas)
+├── components/          # Presentational pieces; no fetch calls here
+└── hooks/               # useEstimation (request lifecycle), useTheme (light/dark)
 ```
 
 ### 3.2 The dependency rule
@@ -70,7 +86,8 @@ main → routers → services → context / config
 
 - A **router** may import services and schemas. It must never build a prompt or call an SDK.
 - A **service** must never import `fastapi`, never raise `HTTPException`, never see a `Request`.
-- **context/** is data only. No logic, no I/O, no imports from `services` or `routers`.
+- **web/** reaches the backend only through `web/src/api/client.ts`. Components never call `fetch`.
+  `types.ts` mirrors `app/schemas/`: change both in the same commit.
 - **config.py** imports nothing from the app.
 
 If you catch yourself importing "upward", the abstraction is in the wrong layer — move it, don't
@@ -98,7 +115,7 @@ Generic principle statements are useless. These are the concrete rules they tran
 `LLMService` currently does three jobs: build the prompt, hold provider config, and call the OpenAI
 SDK. Three reasons to change. Split as work lands:
 
-- **Prompt assembly** → `app/context/prompt_builder.py` (changes when prompt wording changes)
+- **Prompt assembly** → `app/prompts/loader.py` (changes when prompt wording changes)
 - **Provider call** → `app/services/llm/openai.py` (changes when the SDK changes)
 - **Use case orchestration** → `app/services/estimation_service.py` (changes when the business flow changes)
 
@@ -181,7 +198,7 @@ and services that receive their collaborators instead of reaching for globals.
 ### 4.6 DRY — one source of truth
 
 - Env var names: `config.py` only. Mirror every one in `.env.example`.
-- Prompt fragments (`_ROLE_AND_RULES`, `_OUTPUT_FORMAT`, examples): defined once in `context/`,
+- Prompt fragments (rules, output format, examples): defined once in `app/prompts/estimation/<version>/`,
   never duplicated per provider.
 - Response shapes: one Pydantic model per payload, reused — do not hand-build dicts.
 - Error→status mapping: one place (see §6.3), not repeated `try/except` blocks per endpoint.
@@ -213,6 +230,8 @@ already on the roadmap.
    domain errors to HTTP.
 4. Register the router in `main.py` if it is new. Keep the `/api/v1` prefix.
 5. Give the handler an explicit return type and `response_model`.
+6. If the UI consumes it: mirror the schema in `web/src/api/types.ts` and add one function to
+   `web/src/api/client.ts`. Components call hooks/client, never `fetch` directly.
 
 ### 5.2 Add an LLM provider
 
@@ -285,24 +304,32 @@ Fix these opportunistically when you touch the surrounding code; do not replicat
 |---|---|---|---|
 | 1 | Typos in setting names: `open_api_key`, `antropic_api_key` | `config.py`, `.env.example` | Rename to `openai_api_key` / `anthropic_api_key` (both files, same commit) |
 | 2 | All settings required → app crashes on boot with a partial `.env` | `config.py` | Defaults for non-secrets if desired; provider keys optional — intentionally left required for now |
-| 3 | `provider` hardcoded to `"openai"`, ignoring `LLM_PROVIDER` | `services/llm_service.py` | Provider factory (§4.2) |
-| 4 | Service instantiated at import time in the router | `routers/estimations.py` | FastAPI `Depends` (§4.5) |
 | 5 | `estimation` returned as an opaque Markdown blob | `routers/estimations.py` | Consider a structured response (tasks, total hours, weeks) when a consumer needs it — not before |
-| 6 | ~~No logging~~; still no tests/linter | repo-wide | Structlog base done; tests/linter → §8 |
+| 6 | No Python linter/formatter yet | repo-wide | Add `ruff` when style drift shows up (§8) |
 
 ---
 
 ## 8. Testing and quality
 
-Not yet set up. When adding the first test, use `pytest` + `httpx`/`TestClient`:
-
 ```bash
-uv add --dev pytest pytest-asyncio httpx ruff
-uv run pytest
-uv run ruff check . && uv run ruff format .
+npm test                 # both suites from the repo root (API first, then UI)
+npm run test:api         # uv run pytest  (tests/)
+npm run test:web         # vitest run     (web/src/**/*.test.ts[x])
+npm run test:watch       # vitest in watch mode (UI)
+npm run test:coverage    # pytest --cov=app + vitest --coverage
 ```
 
-Rules once it exists:
+- API: `pytest` + `TestClient`. `tests/conftest.py` pins fake settings and **fails any test that
+  reaches the real OpenAI SDK**; use `FakeProvider` / the fake SDK client instead.
+- UI: Vitest + React Testing Library + jsdom. Mock `web/src/api/client.ts` at the module boundary;
+  query by role/label, not by class names.
+
+CI (`.github/workflows/ci.yml`) runs both suites on every PR to `main`. `main` is protected: changes land
+only through a PR whose `api-tests` and `web-tests` checks pass (admins included). Those job names are
+required status checks — renaming them blocks every merge until branch protection is updated.
+CodeRabbit reviews PRs using `.coderabbit.yaml`, which points reviewers at the rules in this file.
+
+Rules:
 
 - Test **services** directly with a fake `LLMProvider` — never hit a real API in a test.
 - Test **routers** through `TestClient` with `app.dependency_overrides` swapping the service.
@@ -322,4 +349,5 @@ Before finishing any change:
 - [ ] New settings added to `config.py` **and** `.env.example`; no secret committed
 - [ ] Errors mapped to the right status codes; nothing swallowed
 - [ ] `uv run uvicorn app.main:app --reload` boots and `/health` returns `{"status": "ok"}`
+- [ ] If `web/` changed: `npm --prefix web run build` and `npm --prefix web run lint` pass
 - [ ] `README.md` / `AGENTS.md` updated if structure or workflow changed
