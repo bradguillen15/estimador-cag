@@ -34,3 +34,8 @@ class EstimationRequest(BaseModel):
 class EstimationResponse(BaseModel):
     text: str
     prompt_version: str
+
+
+class PromptContextResponse(BaseModel):
+    prompt_version: str
+    examples_markdown: str

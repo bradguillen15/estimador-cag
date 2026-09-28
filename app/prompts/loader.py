@@ -7,6 +7,7 @@ from pathlib import Path
 
 from jinja2 import Environment, FileSystemLoader, StrictUndefined, TemplateNotFound
 
+from app.exceptions import PromptTemplateError
 from app.schemas.estimations import EstimationRequest
 
 _PROMPTS_ROOT = Path(__file__).resolve().parent
@@ -16,7 +17,7 @@ _PROMPTS_ROOT = Path(__file__).resolve().parent
 def _environment(version: str) -> Environment:
     version_dir = _PROMPTS_ROOT / "estimation" / version
     if not version_dir.is_dir():
-        raise ValueError(f"Versión de prompt desconocida: {version!r}")
+        raise PromptTemplateError(f"Versión de prompt desconocida: {version!r}")
 
     return Environment(
         loader=FileSystemLoader(version_dir),
@@ -27,10 +28,24 @@ def _environment(version: str) -> Environment:
     )
 
 
+def _render(version: str, template: str, **context: str) -> str:
+    try:
+        return _environment(version).get_template(template).render(**context).strip()
+    except TemplateNotFound as exc:
+        raise PromptTemplateError(
+            f"Falta la plantilla {exc.name!r} en estimation/{version}/"
+        ) from exc
+
+
 @lru_cache
 def _system_prompt(version: str) -> str:
     # Static per version: identical prefix on every request, so the provider can cache it.
-    return _environment(version).get_template("system.j2").render().strip()
+    return _render(version, "system.j2")
+
+
+def render_estimation_examples(version: str) -> str:
+    """Return the few-shot examples block exactly as it is injected into the system prompt."""
+    return _render(version, "examples.j2")
 
 
 def render_estimation_prompt(
@@ -41,18 +56,12 @@ def render_estimation_prompt(
 
     Templates live under ``app/prompts/estimation/<version>/``.
     """
-    context = {
-        "description": request.description.strip(),
-        "project_type": request.project_type.value,
-        "detail_level": request.detail_level.value,
-        "output_format": request.output_format.value,
-    }
-    try:
-        system = _system_prompt(version)
-        user = _environment(version).get_template("user.j2").render(**context)
-    except TemplateNotFound as exc:
-        raise ValueError(
-            f"Falta la plantilla {exc.name!r} en estimation/{version}/"
-        ) from exc
-
-    return system, user.strip()
+    user = _render(
+        version,
+        "user.j2",
+        description=request.description.strip(),
+        project_type=request.project_type.value,
+        detail_level=request.detail_level.value,
+        output_format=request.output_format.value,
+    )
+    return _system_prompt(version), user

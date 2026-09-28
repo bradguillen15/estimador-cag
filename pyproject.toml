@@ -11,7 +11,18 @@ dependencies = [
     "openai>=3.13.0",
     "pydantic-settings>=2.15.0",
     "python-dotenv>=1.2.3",
-    "streamlit>=1.64.0",
     "structlog>=26.1.0",
     "uvicorn[standard]>=0.52.4",
 ]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+    "pytest-cov>=7.1.0",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+# Third-party deprecation inside Starlette's TestClient; not actionable here.
+filterwarnings = ["ignore:The anyio.abc.BlockingPortal alias is deprecated:DeprecationWarning"]

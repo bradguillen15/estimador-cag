@@ -1,67 +1,63 @@
-"""Servicio de llamada al LLM (lógica de negocio)."""
+"""Proveedor OpenAI: único módulo que conoce el SDK de OpenAI."""
 
 from collections.abc import Iterator
-from dataclasses import dataclass
 from time import perf_counter
 
+import openai
 import structlog
 from openai import OpenAI
 
-from app.config import settings
+from app.exceptions import LLMProviderError
 from app.logging_config import estimate_cost_usd
-from app.prompts.loader import render_estimation_prompt
-from app.schemas.estimations import EstimationRequest
+from app.services.llm.base import GenerationMetrics
 
 logger = structlog.get_logger()
 
-PROMPT_VERSION = "v1"
+
+def _to_provider_error(exc: Exception) -> LLMProviderError:
+    """Translates SDK failures into a client-safe domain error (raw details stay in the logs)."""
+    if isinstance(exc, LLMProviderError):
+        return exc
+    if isinstance(exc, openai.RateLimitError):
+        return LLMProviderError(
+            "El proveedor LLM alcanzó su límite de solicitudes. Inténtalo de nuevo en unos segundos."
+        )
+    if isinstance(exc, openai.APITimeoutError):
+        return LLMProviderError("El proveedor LLM tardó demasiado en responder.")
+    if isinstance(exc, openai.APIConnectionError):
+        return LLMProviderError("No se pudo conectar con el proveedor LLM.")
+    if isinstance(exc, (openai.AuthenticationError, openai.PermissionDeniedError)):
+        return LLMProviderError("El proveedor LLM rechazó las credenciales configuradas.")
+    return LLMProviderError("El proveedor LLM devolvió un error al generar la estimación.")
 
 
-@dataclass
-class GenerationMetrics:
-    """Métricas de la última llamada al LLM (rellenadas al terminar el stream)."""
-
-    model: str
-    input_tokens: int | None = None
-    output_tokens: int | None = None
-    latency_seconds: float | None = None
+def _messages(system_prompt: str, user_prompt: str) -> list[dict[str, str]]:
+    return [
+        {"role": "system", "content": system_prompt},
+        {"role": "user", "content": user_prompt},
+    ]
 
 
-class LLMService:
-    def __init__(self) -> None:
-        self.provider = "openai"
-        self.model = settings.llm_model
-        self._client = OpenAI(api_key=settings.open_api_key)
+class OpenAIProvider:
+    name = "openai"
 
-    def generate_from_request(self, request: EstimationRequest) -> str:
-        system, user = render_estimation_prompt(request, version=PROMPT_VERSION)
-        return self._complete(system, user, stream=False)
+    def __init__(self, api_key: str, model: str, client: OpenAI | None = None) -> None:
+        self.model = model
+        self._client = client or OpenAI(api_key=api_key)
 
-    def generate_stream_from_request(
-        self,
-        request: EstimationRequest,
-        metrics: GenerationMetrics | None = None,
-    ) -> Iterator[str]:
-        system, user = render_estimation_prompt(request, version=PROMPT_VERSION)
-        yield from self._complete_stream(system, user, metrics=metrics)
-
-    def _complete(self, system: str, user: str, *, stream: bool = False) -> str:
-        del stream  # reserved for symmetry with _complete_stream
-        call_logger = logger.bind(model=self.model, provider=self.provider, stream=False)
+    def complete(self, system_prompt: str, user_prompt: str) -> str:
+        call_logger = logger.bind(model=self.model, provider=self.name, stream=False)
         call_logger.info("llm_call_started")
         started_at = perf_counter()
 
         try:
             completion = self._client.chat.completions.create(
                 model=self.model,
-                messages=[
-                    {"role": "system", "content": system},
-                    {"role": "user", "content": user},
-                ],
+                messages=_messages(system_prompt, user_prompt),
             )
             content = completion.choices[0].message.content
             if not content:
-                raise RuntimeError("OpenAI devolvió una respuesta vacía.")
+                raise LLMProviderError("El proveedor LLM devolvió una respuesta vacía.")
 
             usage = completion.usage
             tokens_in = usage.prompt_tokens if usage else None
@@ -85,15 +81,15 @@ class LLMService:
                 error_msg=str(exc),
                 latency_ms=round((perf_counter() - started_at) * 1000, 1),
             )
-            raise
+            raise _to_provider_error(exc) from exc
 
-    def _complete_stream(
+    def stream(
         self,
-        system: str,
-        user: str,
+        system_prompt: str,
+        user_prompt: str,
         metrics: GenerationMetrics | None = None,
     ) -> Iterator[str]:
-        call_logger = logger.bind(model=self.model, provider=self.provider, stream=True)
+        call_logger = logger.bind(model=self.model, provider=self.name, stream=True)
         call_logger.info("llm_call_started")
         started_at = perf_counter()
         tokens_in: int | None = None
@@ -103,10 +99,7 @@ class LLMService:
         try:
             stream = self._client.chat.completions.create(
                 model=self.model,
-                messages=[
-                    {"role": "system", "content": system},
-                    {"role": "user", "content": user},
-                ],
+                messages=_messages(system_prompt, user_prompt),
                 stream=True,
                 stream_options={"include_usage": True},
             )
@@ -149,4 +142,4 @@ class LLMService:
                 error_msg=str(exc),
                 latency_ms=round((perf_counter() - started_at) * 1000, 1),
             )
-            raise
+            raise _to_provider_error(exc) from exc
