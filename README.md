@@ -157,6 +157,7 @@ web/src/
 └── test/                 # Vitest setup and fixtures
 scripts/                  # dev runner, pnpm-only install guard
 docs/screenshots/         # README screenshots
+docs/samples/             # Copy-paste project descriptions for manual UI checks
 ```
 
 Contributor rules (layers, conventions, recipes, definition of done) live in
