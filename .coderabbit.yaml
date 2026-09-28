@@ -36,8 +36,9 @@ reviews:
         - Type hints on every signature; identifiers in English, user-facing text in Spanish.
     - path: "app/prompts/**"
       instructions: |
-        Prompt templates for the LLM. system.j2 must stay static (no request variables) so the provider
-        can cache it. Check that few-shot examples are consistent with the mandatory output format and
+        Prompt templates for the LLM. system.j2 is a static prefix (rules + examples) followed only by the
+        trailing request.j2 / language.j2 blocks, so the provider can cache the prefix; request data
+        (the description) belongs in user.j2 only. Check that few-shot examples are consistent with the mandatory output format and
         that their arithmetic adds up (hours sum to the total, weeks ≈ hours ÷ (FTE × 30)).
         Changes that alter model output should come with a new version folder and a PROMPT_VERSION bump.
     - path: "tests/**"

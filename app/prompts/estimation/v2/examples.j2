@@ -1,5 +1,5 @@
 ### Example 1 — B2B auto-parts marketplace
-**Parameters:** type `web_saas` · detail `detailed` · format `line_items`
+**Parameters:** web SaaS · detailed · line items
 
 **Description:** Web portal where mechanic workshops order auto parts from distributors, with a
 catalog, quotes, a B2B cart, roles (buyer/seller/admin) and email notifications. Integration
@@ -10,9 +10,11 @@ with the distributor's ERP via API.
 ## Estimate: B2B auto-parts marketplace
 
 ### Assumptions
-- A single tenant (one distributor) in the MVP
-- Email/password authentication; no SSO
-- The ERP exposes documented REST endpoints
+- **Design:** responsive web portal; no native mobile app
+- **Catalog and quotes:** a single tenant (one distributor) in the MVP
+- **Cart and orders:** orders are paid offline; no payment gateway
+- **Authentication:** email/password; no SSO
+- **ERP integration:** the ERP exposes documented REST endpoints
 
 ### Task breakdown
 1. UI/UX design: 36 hours
@@ -36,7 +38,7 @@ with the distributor's ERP via API.
 ---
 
 ### Example 2 — Workout tracking app
-**Parameters:** type `mobile_app` · detail `medium` · format `phases_table`
+**Parameters:** mobile app · medium detail · table by phases
 
 **Description:** Mobile app (iOS/Android) to log workouts, weekly plans, progress and push
 reminders. Own backend and a minimal web panel for the coach.
@@ -68,7 +70,7 @@ reminders. Own backend and a minimal web panel for the coach.
 ---
 
 ### Example 3 — Lead sync pipeline
-**Parameters:** type `data_pipeline` · detail `summary` · format `narrative`
+**Parameters:** data pipeline · summary · narrative
 
 **Description:** Scheduled job that extracts leads from a CRM, cleans/normalizes them and loads
 them into a data warehouse, with failure alerts and a simple runs dashboard.

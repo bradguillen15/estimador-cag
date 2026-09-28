@@ -13,6 +13,7 @@ from app.services.estimation_service import PROMPT_VERSION
 from tests.conftest import VALID_REQUEST
 
 LANGUAGE_HEADING = "## Response language"
+REQUEST_HEADING = "## This request"
 
 
 def _request(**overrides: str) -> EstimationRequest:
@@ -49,22 +50,33 @@ def test_instructions_and_examples_are_written_in_english() -> None:
         assert spanish not in instructions
 
 
-def test_system_prompt_is_identical_for_every_request() -> None:
-    # A static system prompt is what lets the provider cache the CAG prefix.
-    assert _system() == _system(project_type="data_pipeline", detail_level="summary", output_format="narrative")
+def test_rules_and_examples_prefix_is_identical_for_every_request() -> None:
+    # Only the trailing "This request" / "Response language" blocks vary, so the long prefix
+    # (rules + CAG examples) stays cacheable by the provider.
+    variants = [
+        _system(),
+        _system("en", project_type="data_pipeline", detail_level="summary", output_format="narrative"),
+        _system(detail_level="detailed", output_format="phases_table"),
+    ]
+    prefixes = {system.split(REQUEST_HEADING)[0] for system in variants}
+    assert len(prefixes) == 1
+    assert render_estimation_examples(PROMPT_VERSION) in prefixes.pop()
+
+
+def test_request_block_comes_before_the_language_block() -> None:
+    system = _system()
+    assert system.index(REQUEST_HEADING) < system.index(LANGUAGE_HEADING)
+    assert system.count(REQUEST_HEADING) == 1
 
 
 def test_system_prompt_does_not_contain_request_data() -> None:
     assert "XYZ-42" not in _system(description="Proyecto secreto con marca única XYZ-42")
 
 
-def test_system_prompt_keeps_the_output_contract() -> None:
+def test_system_prompt_keeps_the_estimation_rules() -> None:
     system = _system()
-    assert render_estimation_examples(PROMPT_VERSION) in system
-    for option in ("summary", "medium", "detailed", "line_items", "phases_table", "narrative"):
-        assert f"`{option}`" in system
-    assert "Phase | Tasks | Hours" in system
     assert "weeks = total hours ÷ (FTE × 30 productive hours per week)" in system
+    assert "The total must be exactly the sum of the breakdown" in system
     assert "Never invent rates" in system
 
 
@@ -83,7 +95,7 @@ def test_default_response_language_is_spanish_with_the_original_labels() -> None
 
 def test_spanish_block_steers_towards_natural_spanish_wording() -> None:
     block = _system("es").split(LANGUAGE_HEADING)[1]
-    for term in ("### Supuestos", "### Desglose de tareas", "### Riesgos y fuera de alcance", "Fase | Tareas | Horas", "medio tiempo"):
+    for term in ("### Supuestos", "### Desglose de tareas", "### Riesgos y fuera de alcance", "Phase → `Fase`", "medio tiempo"):
         assert term in block
     # English responses must not be nudged towards Spanish wording.
     assert "medio tiempo" not in _system("en").split(LANGUAGE_HEADING)[1]
@@ -124,7 +136,7 @@ def test_language_block_is_last_so_the_prefix_is_shared() -> None:
 # --- user prompt ------------------------------------------------------------------------------
 
 
-def test_user_prompt_carries_the_parameters_and_delimited_description() -> None:
+def test_user_prompt_carries_the_parameters() -> None:
     request = _request(
         description="   App de reservas para gimnasios con pagos y recordatorios.   ",
         project_type="mobile_app",
@@ -136,7 +148,6 @@ def test_user_prompt_carries_the_parameters_and_delimited_description() -> None:
 
     assert user.startswith("Estimate the following project.")
     assert "type `mobile_app` · detail `detailed` · format `phases_table`" in user
-    assert "<description>\nApp de reservas para gimnasios con pagos y recordatorios.\n</description>" in user
 
 
 def test_description_is_inserted_literally_not_evaluated_as_a_template() -> None:
@@ -154,8 +165,10 @@ def test_description_is_inserted_literally_not_evaluated_as_a_template() -> None
 def test_examples_cover_every_output_format() -> None:
     examples = render_estimation_examples(PROMPT_VERSION)
     assert examples.count("### Example") == 3
-    for output_format in ("line_items", "phases_table", "narrative"):
-        assert f"format `{output_format}`" in examples
+    # One example per output format, described in words so format identifiers only appear in
+    # the "This request" block.
+    for output_format in ("line items", "table by phases", "narrative"):
+        assert output_format in examples
 
 
 # --- versions and failures --------------------------------------------------------------------

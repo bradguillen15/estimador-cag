@@ -248,8 +248,10 @@ already on the roadmap.
 - Prompts live in `app/prompts/estimation/<version>/` (`system.j2`, `examples.j2`, `user.j2`).
   Changing wording or examples in a way that alters output → new version folder + bump
   `PROMPT_VERSION`.
-- `system.j2` must stay **static** (no request variables): an identical prefix on every request is
-  what lets the provider cache it. Request-specific parameters go in `user.j2`.
+- `system.j2` = a **static prefix** (rules + examples, never request data) followed by two short
+  trailing blocks: `request.j2` (instructions for the chosen detail level / output format) and
+  `language.j2` (response language). Keeping every variable part at the end is what lets the
+  provider cache the prefix. The description itself only ever goes in `user.j2`.
 - Each example declares its parameters (type · detail · format); keep at least one example per
   `output_format` so the few-shots never contradict the requested format.
 - Keep examples **consistent with the mandatory output format** in the prompt; if they diverge, fix

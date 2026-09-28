@@ -2,11 +2,11 @@
 
 from collections.abc import Iterator
 
-from app.prompts.loader import render_estimation_examples, render_estimation_prompt
+from app.prompts.loader import PROMPT_VERSION, render_estimation_examples, render_estimation_prompt
 from app.schemas.estimations import EstimationRequest
 from app.services.llm.base import GenerationMetrics, StreamingLLMProvider
 
-PROMPT_VERSION = "v2"
+__all__ = ["PROMPT_VERSION", "EstimationService"]
 
 
 class EstimationService:
@@ -23,10 +23,10 @@ class EstimationService:
 
     def context_examples(self) -> str:
         """Ejemplos CAG que recibe el modelo en el system prompt (Markdown)."""
-        return render_estimation_examples(PROMPT_VERSION)
+        return render_estimation_examples()
 
     def generate(self, request: EstimationRequest) -> str:
-        system, user = render_estimation_prompt(request, version=PROMPT_VERSION)
+        system, user = render_estimation_prompt(request)
         return self._provider.complete(system, user)
 
     def generate_stream(
@@ -34,5 +34,5 @@ class EstimationService:
         request: EstimationRequest,
         metrics: GenerationMetrics | None = None,
     ) -> Iterator[str]:
-        system, user = render_estimation_prompt(request, version=PROMPT_VERSION)
+        system, user = render_estimation_prompt(request)
         yield from self._provider.stream(system, user, metrics=metrics)
