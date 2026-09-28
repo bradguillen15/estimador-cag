@@ -1,0 +1,63 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+# CodeRabbit AI review settings. Docs: https://docs.coderabbit.ai/getting-started/yaml-configuration
+
+language: en-US
+
+reviews:
+  profile: assertive
+  # Comments only; merge gating comes from the required CI checks on `main`.
+  request_changes_workflow: false
+  high_level_summary: true
+  review_status: true
+  poem: false
+  auto_review:
+    enabled: true
+    drafts: false
+    base_branches:
+      - main
+
+  path_filters:
+    - "!**/node_modules/**"
+    - "!web/dist/**"
+    - "!web/coverage/**"
+    - "!**/*.lock"
+    - "!web/package-lock.json"
+
+  path_instructions:
+    - path: "app/**/*.py"
+      instructions: |
+        Follow AGENTS.md (it is the source of truth for this repo):
+        - Layering: routers → services → prompts/config. Routers never build prompts or call an SDK;
+          services never import fastapi or raise HTTPException; env vars are read only in app/config.py.
+        - The OpenAI SDK may only be used in app/services/llm/openai.py. SDK exceptions must be
+          translated to LLMProviderError, and error messages returned to clients must not leak provider
+          details or secrets.
+        - Collaborators are injected with FastAPI Depends (app/dependencies.py), not created at import time.
+        - Type hints on every signature; identifiers in English, user-facing text in Spanish.
+    - path: "app/prompts/**"
+      instructions: |
+        Prompt templates for the LLM. system.j2 must stay static (no request variables) so the provider
+        can cache it. Check that few-shot examples are consistent with the mandatory output format and
+        that their arithmetic adds up (hours sum to the total, weeks ≈ hours ÷ (FTE × 30)).
+        Changes that alter model output should come with a new version folder and a PROMPT_VERSION bump.
+    - path: "tests/**"
+      instructions: |
+        pytest suite. Tests must never call a real LLM: use FakeProvider or the fake SDK client.
+        Assert on contracts (status codes, schemas, error mapping), never on exact LLM wording.
+    - path: "web/src/**/*.{ts,tsx}"
+      instructions: |
+        React 19 + TypeScript + Tailwind v4. Components never call fetch directly; they go through
+        web/src/api/client.ts via hooks. web/src/api/types.ts must mirror app/schemas/.
+        Use the semantic color tokens from index.css (bg-surface, text-muted…) instead of raw colors.
+        Check accessibility (labels, roles, focus states) and that animations respect reduced motion.
+    - path: "web/src/**/*.test.{ts,tsx}"
+      instructions: |
+        Vitest + React Testing Library. Test behavior through roles/labels, not implementation details.
+        Mock web/src/api/client.ts at the module boundary.
+    - path: ".github/workflows/**"
+      instructions: |
+        Job names api-tests and web-tests are required status checks on main; renaming them blocks merges.
+        Keep permissions minimal and never print secrets.
+
+chat:
+  auto_reply: true
