@@ -4,17 +4,26 @@ import { EstimateForm } from './components/EstimateForm'
 import { EstimationResult } from './components/EstimationResult'
 import { Sidebar } from './components/Sidebar'
 import { useEstimation } from './hooks/useEstimation'
+import { useResponseLanguage } from './hooks/useResponseLanguage'
 import { useTheme } from './hooks/useTheme'
 
 export default function App() {
   const [theme, setTheme] = useTheme()
+  const [language, setLanguage] = useResponseLanguage()
   const [streaming, setStreaming] = useState(false)
   const { state, run } = useEstimation()
   const busy = state.status === 'loading' || state.status === 'streaming'
 
   return (
     <div className="grid min-h-screen md:grid-cols-[288px_1fr]">
-      <Sidebar streaming={streaming} onStreamingChange={setStreaming} theme={theme} onThemeChange={setTheme} />
+      <Sidebar
+        streaming={streaming}
+        onStreamingChange={setStreaming}
+        language={language}
+        onLanguageChange={setLanguage}
+        theme={theme}
+        onThemeChange={setTheme}
+      />
 
       <main className="min-w-0 px-4 pt-9 pb-20 md:px-12 md:pt-[76px] md:pb-32">
         <div className="mx-auto max-w-[740px]">
@@ -31,7 +40,7 @@ export default function App() {
             envía al servicio.
           </p>
 
-          <EstimateForm busy={busy} onSubmit={(request) => run(request, streaming)} />
+          <EstimateForm busy={busy} onSubmit={(input) => run({ ...input, language }, streaming)} />
           <EstimationResult state={state} />
         </div>
       </main>

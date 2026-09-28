@@ -116,6 +116,10 @@ curl -X POST http://127.0.0.1:8000/api/v1/estimate \
     "description": "MVP web de e-commerce con catálogo, carrito y pagos Stripe",
     "project_type": "web_saas",
     "detail_level": "medium",
-    "output_format": "phases_table"
+    "output_format": "phases_table",
+    "language": "en"
   }'
+
+# language: "es" (por defecto) | "en" — idioma de la respuesta del modelo.
+# Los prompts están siempre en inglés; un valor no soportado vuelve a "es".
 ```

@@ -8,12 +8,12 @@ import {
   OUTPUT_FORMATS,
   PROJECT_TYPES,
 } from '../api/types'
-import type { DetailLevel, EstimationRequest, OutputFormat, ProjectType } from '../api/types'
+import type { DetailLevel, EstimationInput, OutputFormat, ProjectType } from '../api/types'
 import { Chevron } from './icons'
 
 interface EstimateFormProps {
   busy: boolean
-  onSubmit: (request: EstimationRequest) => void
+  onSubmit: (input: EstimationInput) => void
 }
 
 export function EstimateForm({ busy, onSubmit }: EstimateFormProps) {

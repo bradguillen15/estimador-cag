@@ -27,6 +27,7 @@ describe('createEstimate', () => {
     expect(url).toBe('/api/v1/estimate')
     expect(init?.method).toBe('POST')
     expect(JSON.parse(init?.body as string)).toEqual(REQUEST)
+    expect(JSON.parse(init?.body as string)).toHaveProperty('language', 'es')
   })
 
   it('surfaces the API detail message with the status code', async () => {
@@ -84,6 +85,7 @@ describe('streamEstimate', () => {
     ])
     const [url, init] = fetchMock.mock.calls[0]
     expect(url).toBe('/api/v1/estimate/stream')
+    expect(JSON.parse(init?.body as string)).toEqual(REQUEST)
     expect(new Headers(init?.headers).get('Accept')).toBe('text/event-stream')
   })
 

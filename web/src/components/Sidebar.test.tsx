@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -18,6 +18,8 @@ function renderSidebar(overrides: Partial<Parameters<typeof Sidebar>[0]> = {}) {
   const props = {
     streaming: false,
     onStreamingChange: vi.fn(),
+    language: 'es' as const,
+    onLanguageChange: vi.fn(),
     theme: 'light' as const,
     onThemeChange: vi.fn(),
     ...overrides,
@@ -73,6 +75,23 @@ describe('Sidebar', () => {
     renderSidebar({ streaming: true })
     expect(screen.getByRole('switch', { name: /streaming/i })).toBeChecked()
     expect(screen.getByText(/SSE — mismo formulario/)).toBeInTheDocument()
+  })
+
+  it('offers Spanish and English as response languages, with the current one selected', () => {
+    renderSidebar()
+
+    const group = screen.getByRole('radiogroup', { name: 'Idioma de respuesta' })
+    expect(within(group).getByRole('radio', { name: /Español/ })).toBeChecked()
+    expect(within(group).getByRole('radio', { name: /English/ })).not.toBeChecked()
+  })
+
+  it('reports the language the user picks', async () => {
+    const user = userEvent.setup()
+    const { onLanguageChange } = renderSidebar()
+
+    await user.click(screen.getByRole('radio', { name: /English/ }))
+
+    expect(onLanguageChange).toHaveBeenCalledWith('en')
   })
 
   it('switches between light and dark themes', async () => {

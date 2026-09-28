@@ -54,6 +54,42 @@ describe('App', () => {
     expect(createEstimate).not.toHaveBeenCalled()
   })
 
+  it('sends Spanish by default and the newly selected language on the next request', async () => {
+    vi.mocked(createEstimate).mockResolvedValue({ text: '## Estimación: Gimnasio', prompt_version: 'v2' })
+    const user = await fillForm()
+    const submit = screen.getByRole('button', { name: 'Generar estimación' })
+
+    await user.click(submit)
+    await screen.findByRole('heading', { name: 'Estimación: Gimnasio' })
+    expect(createEstimate).toHaveBeenLastCalledWith(expect.objectContaining({ language: 'es' }), expect.any(AbortSignal))
+
+    await user.click(screen.getByRole('radio', { name: /English/ }))
+    await user.click(submit)
+    expect(createEstimate).toHaveBeenLastCalledWith(expect.objectContaining({ language: 'en' }), expect.any(AbortSignal))
+  })
+
+  it('includes the language in streaming requests too', async () => {
+    vi.mocked(streamEstimate).mockReturnValue(streamOf({ type: 'done', meta: DONE_META }))
+    const user = await fillForm()
+
+    await user.click(screen.getByRole('radio', { name: /English/ }))
+    await user.click(screen.getByRole('switch', { name: /streaming/i }))
+    await user.click(screen.getByRole('button', { name: 'Generar estimación' }))
+
+    expect(streamEstimate).toHaveBeenCalledWith(expect.objectContaining({ language: 'en' }), expect.any(AbortSignal))
+  })
+
+  it('remembers the response language after a reload', async () => {
+    const user = userEvent.setup()
+    const { unmount } = render(<App />)
+    await user.click(screen.getByRole('radio', { name: /English/ }))
+    unmount()
+
+    render(<App />)
+
+    expect(screen.getByRole('radio', { name: /English/ })).toBeChecked()
+  })
+
   it('shows API failures and lets the user retry', async () => {
     vi.mocked(createEstimate)
       .mockRejectedValueOnce(new Error('Error HTTP 502: El proveedor LLM tardó demasiado en responder.'))

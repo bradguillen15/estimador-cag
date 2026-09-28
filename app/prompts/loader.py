@@ -52,12 +52,11 @@ def render_estimation_examples(version: str) -> str:
 def render_estimation_prompt(
     request: EstimationRequest,
     version: str,
-    language: str = "es",
 ) -> tuple[str, str]:
     """Return ``(system, user)`` prompts ready for the LLM.
 
-    Templates live under ``app/prompts/estimation/<version>/``; ``language`` is the response
-    language the system prompt asks the model to answer in.
+    Templates live under ``app/prompts/estimation/<version>/``. The system prompt ends with an
+    instruction to answer entirely in ``request.language``.
     """
     user = _render(
         version,
@@ -67,4 +66,4 @@ def render_estimation_prompt(
         detail_level=request.detail_level.value,
         output_format=request.output_format.value,
     )
-    return _system_prompt(version, language), user
+    return _system_prompt(version, request.language.value), user

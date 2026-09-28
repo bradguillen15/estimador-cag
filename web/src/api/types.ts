@@ -3,12 +3,19 @@
 export type ProjectType = 'mobile_app' | 'web_saas' | 'internal_tool' | 'data_pipeline'
 export type DetailLevel = 'summary' | 'medium' | 'detailed'
 export type OutputFormat = 'phases_table' | 'line_items' | 'narrative'
+/** Language the model answers in. The API falls back to 'es' for anything else. */
+export type ResponseLanguage = 'es' | 'en'
 
-export interface EstimationRequest {
+/** What the form collects; the response language comes from the sidebar. */
+export interface EstimationInput {
   description: string
   project_type: ProjectType
   detail_level: DetailLevel
   output_format: OutputFormat
+}
+
+export interface EstimationRequest extends EstimationInput {
+  language: ResponseLanguage
 }
 
 export interface EstimationResponse {
@@ -38,6 +45,13 @@ export type StreamEvent =
 
 export const DESCRIPTION_MIN = 20
 export const DESCRIPTION_MAX = 2000
+
+export const DEFAULT_RESPONSE_LANGUAGE: ResponseLanguage = 'es'
+
+export const RESPONSE_LANGUAGES: { value: ResponseLanguage; label: string }[] = [
+  { value: 'es', label: 'Español' },
+  { value: 'en', label: 'English' },
+]
 
 export const PROJECT_TYPES: { value: ProjectType; label: string }[] = [
   { value: 'mobile_app', label: 'App móvil' },

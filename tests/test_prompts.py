@@ -20,7 +20,7 @@ def _request(**overrides: str) -> EstimationRequest:
 
 
 def _system(language: str = "es", **overrides: str) -> str:
-    return render_estimation_prompt(_request(**overrides), version=PROMPT_VERSION, language=language)[0]
+    return render_estimation_prompt(_request(language=language, **overrides), version=PROMPT_VERSION)[0]
 
 
 @pytest.fixture
@@ -79,6 +79,32 @@ def test_default_response_language_is_spanish_with_the_original_labels() -> None
         "## Información insuficiente",
     ):
         assert label in block
+
+
+def test_english_requests_get_an_explicit_english_instruction_and_labels() -> None:
+    block = _system("en").split(LANGUAGE_HEADING)[1]
+    assert "Respond entirely in English" in block
+    for label in (
+        "## Estimate: <project name>",
+        "**Total estimate: <N> hours**",
+        "**Recommended team: <roles> (≈<F> FTE)**",
+        "**Estimated duration: <N>-<M> weeks**",
+        "## Insufficient information",
+    ):
+        assert label in block
+    assert "Spanish" not in block
+
+
+def test_a_request_without_language_is_answered_in_spanish() -> None:
+    payload = {key: value for key, value in VALID_REQUEST.items() if key != "language"}
+    system, _ = render_estimation_prompt(EstimationRequest.model_validate(payload), version=PROMPT_VERSION)
+    assert "Respond entirely in Spanish" in system.split(LANGUAGE_HEADING)[1]
+
+
+def test_language_only_changes_the_system_prompt_not_the_user_prompt() -> None:
+    _, user_es = render_estimation_prompt(_request(language="es"), version=PROMPT_VERSION)
+    _, user_en = render_estimation_prompt(_request(language="en"), version=PROMPT_VERSION)
+    assert user_es == user_en
 
 
 def test_language_block_is_last_so_the_prefix_is_shared() -> None:

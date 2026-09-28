@@ -69,6 +69,26 @@ def test_estimate_rejects_invalid_input_without_calling_the_llm(
     assert fake_provider.calls == []
 
 
+@pytest.mark.parametrize(
+    ("language", "instruction"),
+    [("en", "Respond entirely in English"), ("es", "Respond entirely in Spanish"), ("fr", "Respond entirely in Spanish")],
+)
+def test_estimate_asks_the_model_to_answer_in_the_requested_language(
+    client: TestClient, fake_provider: FakeProvider, language: str, instruction: str
+) -> None:
+    response = client.post("/api/v1/estimate", json={**VALID_REQUEST, "language": language})
+
+    assert response.status_code == 200
+    system_prompt, _ = fake_provider.calls[0]
+    assert instruction in system_prompt
+
+
+def test_stream_honours_the_requested_language(client: TestClient, fake_provider: FakeProvider) -> None:
+    client.post("/api/v1/estimate/stream", json={**VALID_REQUEST, "language": "en"})
+    system_prompt, _ = fake_provider.calls[0]
+    assert "Respond entirely in English" in system_prompt
+
+
 def test_provider_failure_maps_to_502_with_a_safe_message(client: TestClient, fake_provider: FakeProvider) -> None:
     fake_provider.error = LLMProviderError("El proveedor LLM alcanzó su límite de solicitudes.")
 

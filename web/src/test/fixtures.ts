@@ -5,6 +5,7 @@ export const REQUEST: EstimationRequest = {
   project_type: 'web_saas',
   detail_level: 'medium',
   output_format: 'line_items',
+  language: 'es',
 }
 
 export const DONE_META: GenerationMeta = {

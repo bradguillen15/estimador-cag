@@ -1,13 +1,13 @@
-import type { ReactNode } from 'react'
-
 import type { Theme } from '../hooks/useTheme'
+import { SegmentedControl } from './SegmentedControl'
+import type { SegmentOption } from './SegmentedControl'
 
 interface ThemeToggleProps {
   value: Theme
   onChange: (theme: Theme) => void
 }
 
-const OPTIONS: { value: Theme; label: string; icon: ReactNode }[] = [
+const OPTIONS: SegmentOption<Theme>[] = [
   {
     value: 'light',
     label: 'Claro',
@@ -30,24 +30,5 @@ const OPTIONS: { value: Theme; label: string; icon: ReactNode }[] = [
 ]
 
 export function ThemeToggle({ value, onChange }: ThemeToggleProps) {
-  return (
-    <div role="radiogroup" aria-label="Tema" className="grid grid-cols-2 rounded-full bg-field p-[3px] shadow-[0_0_0_1px_var(--line)]">
-      {OPTIONS.map((option) => (
-        <label key={option.value} className="relative">
-          <input
-            type="radio"
-            name="theme"
-            value={option.value}
-            checked={value === option.value}
-            onChange={() => onChange(option.value)}
-            className="peer absolute opacity-0"
-          />
-          <span className="flex h-7 cursor-pointer items-center justify-center gap-1.5 rounded-full text-[12.5px] text-muted transition-colors duration-150 peer-checked:bg-accent-soft peer-checked:text-accent peer-checked:shadow-[0_0_0_1px_color-mix(in_srgb,var(--accent)_35%,transparent)] peer-focus-visible:outline-2 peer-focus-visible:outline-offset-1 peer-focus-visible:outline-accent hover:text-ink">
-            {option.icon}
-            {option.label}
-          </span>
-        </label>
-      ))}
-    </div>
-  )
+  return <SegmentedControl name="theme" label="Tema" value={value} options={OPTIONS} onChange={onChange} />
 }

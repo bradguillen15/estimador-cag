@@ -1,20 +1,23 @@
 import { useEffect, useState } from 'react'
 
 import { API_LABEL, checkHealth, getPromptContext } from '../api/client'
-import type { PromptContext } from '../api/types'
+import type { PromptContext, ResponseLanguage } from '../api/types'
 import type { Theme } from '../hooks/useTheme'
 import { Chevron } from './icons'
+import { LanguageToggle } from './LanguageToggle'
 import { Markdown } from './Markdown'
 import { ThemeToggle } from './ThemeToggle'
 
 interface SidebarProps {
   streaming: boolean
   onStreamingChange: (streaming: boolean) => void
+  language: ResponseLanguage
+  onLanguageChange: (language: ResponseLanguage) => void
   theme: Theme
   onThemeChange: (theme: Theme) => void
 }
 
-export function Sidebar({ streaming, onStreamingChange, theme, onThemeChange }: SidebarProps) {
+export function Sidebar({ streaming, onStreamingChange, language, onLanguageChange, theme, onThemeChange }: SidebarProps) {
   return (
     <aside className="flex flex-col gap-7 border-b border-line bg-sidebar px-4 py-5 md:sticky md:top-0 md:h-screen md:gap-8 md:overflow-y-auto md:border-r md:border-b-0 md:px-[22px] md:py-7">
       <div className="flex items-center gap-2.5 font-semibold tracking-[-0.01em]">
@@ -46,10 +49,18 @@ export function Sidebar({ streaming, onStreamingChange, theme, onThemeChange }: 
         <CagExamples />
       </section>
 
-      <section className="md:mt-auto">
-        <SectionTitle>Apariencia</SectionTitle>
-        <ThemeToggle value={theme} onChange={onThemeChange} />
-      </section>
+      <div className="flex flex-col gap-7 md:mt-auto md:gap-6">
+        <section>
+          <SectionTitle>Idioma de respuesta</SectionTitle>
+          <LanguageToggle value={language} onChange={onLanguageChange} />
+          <p className="mt-2 text-[12.5px] text-muted">Se aplica a la siguiente estimación.</p>
+        </section>
+
+        <section>
+          <SectionTitle>Apariencia</SectionTitle>
+          <ThemeToggle value={theme} onChange={onThemeChange} />
+        </section>
+      </div>
     </aside>
   )
 }
