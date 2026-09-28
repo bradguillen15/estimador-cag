@@ -35,6 +35,9 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: ['./src/test/setup.ts'],
     css: false,
+    // Vitest 4: restoreMocks only restores spies; mockReset also clears calls and implementations of
+    // vi.fn() mocks (e.g. the mocked API client) so no state leaks between tests.
+    mockReset: true,
     restoreMocks: true,
     coverage: {
       provider: 'v8',
