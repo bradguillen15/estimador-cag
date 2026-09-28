@@ -84,17 +84,29 @@ export async function* streamEstimate(body: EstimationRequest, signal?: AbortSig
 
   const reader = response.body.pipeThrough(new TextDecoderStream()).getReader()
   let buffer = ''
-  for (;;) {
-    const { value, done } = await reader.read()
-    if (done) break
-    buffer += value.replace(/\r\n?/g, '\n')
+  let pendingCR = false
+  try {
+    for (;;) {
+      const { value, done } = await reader.read()
+      if (done) {
+        if (pendingCR) buffer += '\n'
+      } else {
+        const chunk: string = pendingCR ? `\r${value}` : (value ?? '')
+        pendingCR = chunk.endsWith('\r')
+        buffer += pendingCR ? chunk.slice(0, -1) : chunk
+        buffer = buffer.replace(/\r\n?/g, '\n')
+      }
 
-    let boundary: number
-    while ((boundary = buffer.indexOf('\n\n')) !== -1) {
-      const event = parseEvent(buffer.slice(0, boundary))
-      buffer = buffer.slice(boundary + 2)
-      if (event) yield event
+      let boundary: number
+      while ((boundary = buffer.indexOf('\n\n')) !== -1) {
+        const event = parseEvent(buffer.slice(0, boundary))
+        buffer = buffer.slice(boundary + 2)
+        if (event) yield event
+      }
+      if (done) break
     }
+  } finally {
+    await reader.cancel().catch(() => {})
   }
 }
 

@@ -49,6 +49,7 @@ async def create_estimate_stream(
     metrics = GenerationMetrics(model=service.model)
 
     # The HTTP status is already 200 once streaming starts, so failures travel as an `error` event.
+    stream = None
     try:
         stream = service.generate_stream(body, metrics=metrics)
         async for token in iterate_in_threadpool(stream):
@@ -72,3 +73,7 @@ async def create_estimate_stream(
     except Exception:
         logger.exception("estimate_stream_failed")
         yield ServerSentEvent(data={"detail": _UNEXPECTED_STREAM_ERROR}, event="error")
+    finally:
+        # iterate_in_threadpool does not close the sync generator on early exit (disconnect).
+        if stream is not None:
+            stream.close()

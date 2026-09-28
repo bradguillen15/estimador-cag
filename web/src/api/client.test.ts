@@ -95,6 +95,12 @@ describe('streamEstimate', () => {
     await expect(collect(streamEstimate(REQUEST))).resolves.toEqual([{ type: 'token', text: 'Hola' }])
   })
 
+  it('preserves CRLF when the pair is split between chunks', async () => {
+    fetchMock.mockResolvedValue(chunkedResponse(['event: token\r', '\ndata: "hello"\r\n\r\n']))
+
+    await expect(collect(streamEstimate(REQUEST))).resolves.toEqual([{ type: 'token', text: 'hello' }])
+  })
+
   it('maps error events to a typed error', async () => {
     fetchMock.mockResolvedValue(chunkedResponse(['event: error\ndata: {"detail": "Rate limit"}\n\n']))
     await expect(collect(streamEstimate(REQUEST))).resolves.toEqual([{ type: 'error', detail: 'Rate limit' }])

@@ -1,2 +1,2 @@
 # Runs tests/lint for the staged files (see lint-staged.config.mjs). A failure blocks the commit.
-pnpm exec lint-staged
+pnpm exec lint-staged --hide-all

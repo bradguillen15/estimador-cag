@@ -98,6 +98,34 @@ describe('useEstimation', () => {
     await waitFor(() => expect(result.current.state).toMatchObject({ status: 'done', text: 'segunda' }))
   })
 
+  it('does not let an aborted stream overwrite the next run with a pending animation frame', async () => {
+    let releaseFirst!: () => void
+    const firstGate = new Promise<void>((r) => (releaseFirst = r))
+    streamEstimateMock
+      .mockImplementationOnce((_request, signal) =>
+        (async function* (): AsyncGenerator<StreamEvent> {
+          yield { type: 'token', text: 'viejo' }
+          await firstGate
+          if (signal?.aborted) throw new DOMException('aborted', 'AbortError')
+          yield { type: 'token', text: ' no debería verse' }
+        })(),
+      )
+      .mockReturnValueOnce(streamOf({ type: 'token', text: 'nuevo' }, { type: 'done', meta: DONE_META }))
+
+    const { result } = renderHook(() => useEstimation())
+
+    act(() => void result.current.run(REQUEST, true))
+    await waitFor(() => expect(result.current.state).toMatchObject({ status: 'streaming', text: 'viejo' }))
+
+    await act(async () => {
+      void result.current.run({ ...REQUEST, detail_level: 'detailed' }, true)
+      releaseFirst()
+    })
+
+    await waitFor(() => expect(result.current.state).toMatchObject({ status: 'done', text: 'nuevo' }))
+    expect(result.current.state.text).not.toContain('viejo')
+  })
+
   it('renders streamed text progressively before the stream ends', async () => {
     let release!: () => void
     const gate = new Promise<void>((r) => (release = r))

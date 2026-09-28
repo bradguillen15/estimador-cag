@@ -42,6 +42,7 @@ export function useEstimation() {
       let frame = 0
       const flush = () => {
         frame = 0
+        if (controller.signal.aborted) return
         setState((current) => ({ ...current, text }))
       }
 

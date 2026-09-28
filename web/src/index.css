@@ -208,4 +208,8 @@
       opacity: 0;
     }
   }
+  .animate-shimmer,
+  .caret::after {
+    animation: none;
+  }
 }
