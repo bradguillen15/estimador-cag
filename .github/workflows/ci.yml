@@ -23,15 +23,14 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - uses: astral-sh/setup-uv@v10
+      # setup-uv publishes only full version tags (there is no floating `v10`).
+      - uses: astral-sh/setup-uv@v10.2.0
         with:
           enable-cache: true
 
-      # Python version comes from .python-version; --locked fails if uv.lock is out of date.
-      - run: uv sync --locked
-
-      # tests/conftest.py pins fake settings and blocks real LLM calls: no secrets needed.
-      - run: uv run pytest
+      # Same script as the pre-commit hook. Python comes from .python-version; tests/conftest.py
+      # pins fake settings and blocks real LLM calls, so no secrets are needed.
+      - run: bash scripts/ci/api.sh
 
   web:
     name: web-tests
@@ -49,7 +48,5 @@ jobs:
           cache: pnpm
 
       - run: pnpm install --frozen-lockfile
-      - run: pnpm lint
-      - run: pnpm test:web
-      # tsc -b type-checks the app and the tests before bundling.
-      - run: pnpm build
+      # Same script as the pre-commit hook: lint, Vitest, build (includes type-check).
+      - run: bash scripts/ci/web.sh

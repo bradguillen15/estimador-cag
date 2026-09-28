@@ -66,26 +66,23 @@ OpenAI SDK), and the UI tests mock `web/src/api/client.ts`. The prompt template 
 
 ### Pre-commit hook
 
-`pnpm install` installs a git hook (Husky + lint-staged) that checks **only what you are
-committing** and blocks the commit if something fails:
+`pnpm install` installs a git hook (Husky + lint-staged) that runs **the same checks as CI** on
+every commit and blocks it if anything fails. CI and the hook both call the same scripts, so they
+cannot drift apart:
 
-| If you change… | It runs |
-|---|---|
-| `app/`, `tests/`, `pyproject.toml`, `uv.lock` | the whole API suite (~1.5 s) |
-| `web/src/**/*.ts(x)` | ESLint on those files + the Vitest tests that import them |
-| UI config (`web/package.json`, `vite.config.ts`, `index.css`, `pnpm-lock.yaml`…) | the whole UI suite |
-| docs or anything else | nothing |
+- `scripts/ci/api.sh`: `uv sync --locked` + `pytest`
+- `scripts/ci/web.sh`: `pnpm lint` + Vitest + `pnpm build` (includes the type-check)
 
-The full suite takes ~11 s, so the hook only runs the touched area; CI runs everything on every
-PR. It needs `uv` and `pnpm` on your `PATH`.
+lint-staged sets unstaged edits aside while the checks run, so they test exactly what you are
+committing. A commit takes ~25 s. The hook needs `uv` and `pnpm` on your `PATH`.
 
 ## Pull requests
 
 `main` is protected: no direct pushes (admins included); every change goes through a pull request
 that must pass CI (`.github/workflows/ci.yml`) and be up to date with `main`:
 
-- `api-tests`: `uv sync --locked` + `pytest`
-- `web-tests`: `pnpm install --frozen-lockfile` + lint + Vitest + build (includes type-check)
+- `api-tests`: `scripts/ci/api.sh`
+- `web-tests`: `pnpm install --frozen-lockfile` + `scripts/ci/web.sh`
 
 [CodeRabbit](https://coderabbit.ai) reviews each PR using `.coderabbit.yaml`.
 
