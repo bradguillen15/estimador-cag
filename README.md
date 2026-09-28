@@ -10,7 +10,7 @@ Markdown estimate (assumptions, task breakdown, total hours, team and duration).
 
 - **API:** FastAPI + OpenAI (`app/`), JSON and SSE streaming endpoints.
 - **UI:** React 19 + TypeScript + Tailwind v4 on Vite (`web/`). Dark by default, light/dark
-  toggle, response-language toggle (Español / English). The UI copy is in Spanish.
+  toggle, language toggle (Español / English) for both the UI copy and the model response.
 - **Prompts:** versioned Jinja2 templates in English (`app/prompts/estimation/v2/`); the model
   answers in the language selected in the sidebar.
 

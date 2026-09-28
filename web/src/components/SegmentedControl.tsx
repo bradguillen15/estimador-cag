@@ -15,7 +15,7 @@ interface SegmentedControlProps<T extends string> {
   onChange: (value: T) => void
 }
 
-/** Pill-shaped radio group used for the sidebar preferences (theme, response language). */
+/** Pill-shaped radio group used for the sidebar preferences (theme, language). */
 export function SegmentedControl<T extends string>({ name, label, value, options, onChange }: SegmentedControlProps<T>) {
   return (
     <div

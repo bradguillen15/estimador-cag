@@ -6,7 +6,7 @@ import type { ResponseLanguage } from '../api/types'
 const STORAGE_KEY = 'response-language'
 
 const isResponseLanguage = (value: unknown): value is ResponseLanguage =>
-  RESPONSE_LANGUAGES.some((language) => language.value === value)
+  RESPONSE_LANGUAGES.some((language) => language === value)
 
 function readStoredLanguage(): ResponseLanguage {
   try {
@@ -17,7 +17,10 @@ function readStoredLanguage(): ResponseLanguage {
   }
 }
 
-/** Language the model answers in. Spanish by default; persisted across reloads. */
+/**
+ * UI locale and model response language (same toggle).
+ * Spanish by default; persisted across reloads.
+ */
 export function useResponseLanguage(): [ResponseLanguage, (language: ResponseLanguage) => void] {
   const [language, setLanguage] = useState<ResponseLanguage>(readStoredLanguage)
 

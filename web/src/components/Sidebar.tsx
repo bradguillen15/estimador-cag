@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 
 import { API_LABEL, checkHealth, getPromptContext } from '../api/client'
 import type { PromptContext, ResponseLanguage } from '../api/types'
+import { useT } from '../i18n/useLocale'
 import type { Theme } from '../hooks/useTheme'
 import { Chevron } from './icons'
 import { LanguageToggle } from './LanguageToggle'
@@ -18,18 +19,20 @@ interface SidebarProps {
 }
 
 export function Sidebar({ streaming, onStreamingChange, language, onLanguageChange, theme, onThemeChange }: SidebarProps) {
+  const t = useT()
+
   return (
     <aside className="flex flex-col gap-7 border-b border-line bg-sidebar px-4 py-5 md:sticky md:top-0 md:h-screen md:gap-8 md:overflow-y-auto md:border-r md:border-b-0 md:px-[22px] md:py-7">
       <div className="flex items-center gap-2.5 font-semibold tracking-[-0.01em]">
         <span className="grid size-[26px] place-items-center rounded-[10px] bg-btn text-[13px] font-bold text-btn-ink">E</span>
-        Estimador CAG
+        {t('brand.name')}
       </div>
 
       <section>
-        <SectionTitle>API</SectionTitle>
+        <SectionTitle>{t('sidebar.api')}</SectionTitle>
         <ApiStatus />
         <label className="mt-3.5 flex cursor-pointer items-center justify-between gap-3 text-[13.5px]">
-          Streaming (SSE)
+          {t('sidebar.streaming')}
           <input
             type="checkbox"
             role="switch"
@@ -39,25 +42,25 @@ export function Sidebar({ streaming, onStreamingChange, language, onLanguageChan
           />
         </label>
         <p className="mt-2 text-[12.5px] text-muted">
-          {streaming ? 'SSE' : 'JSON'} — mismo formulario, distinto endpoint.
+          {t('sidebar.streaming.hint', { mode: streaming ? 'SSE' : 'JSON' })}
         </p>
       </section>
 
       <section>
-        <SectionTitle>Contexto CAG</SectionTitle>
-        <p className="text-[12.5px] text-muted">Ejemplos inyectados en el system prompt del servidor.</p>
+        <SectionTitle>{t('sidebar.cag')}</SectionTitle>
+        <p className="text-[12.5px] text-muted">{t('sidebar.cag.hint')}</p>
         <CagExamples />
       </section>
 
       <div className="flex flex-col gap-7 md:mt-auto md:gap-6">
         <section>
-          <SectionTitle>Idioma de respuesta</SectionTitle>
+          <SectionTitle>{t('sidebar.language')}</SectionTitle>
           <LanguageToggle value={language} onChange={onLanguageChange} />
-          <p className="mt-2 text-[12.5px] text-muted">Se aplica a la siguiente estimación.</p>
+          <p className="mt-2 text-[12.5px] text-muted">{t('sidebar.language.hint')}</p>
         </section>
 
         <section>
-          <SectionTitle>Apariencia</SectionTitle>
+          <SectionTitle>{t('sidebar.appearance')}</SectionTitle>
           <ThemeToggle value={theme} onChange={onThemeChange} />
         </section>
       </div>
@@ -72,6 +75,7 @@ function SectionTitle({ children }: { children: string }) {
 type Health = 'checking' | 'up' | 'down'
 
 function ApiStatus() {
+  const t = useT()
   const [health, setHealth] = useState<Health>('checking')
 
   useEffect(() => {
@@ -87,7 +91,7 @@ function ApiStatus() {
     up: 'bg-ok shadow-[0_0_0_3px_color-mix(in_srgb,var(--ok)_18%,transparent),0_0_10px_color-mix(in_srgb,var(--ok)_60%,transparent)]',
     down: 'bg-danger',
   }[health]
-  const label = { checking: 'Comprobando API', up: 'API disponible', down: 'API no disponible' }[health]
+  const label = { checking: t('api.checking'), up: t('api.up'), down: t('api.down') }[health]
 
   return (
     <span
@@ -102,6 +106,7 @@ function ApiStatus() {
 }
 
 function CagExamples() {
+  const t = useT()
   const [context, setContext] = useState<PromptContext | null>(null)
   const [error, setError] = useState<string | null>(null)
 
@@ -115,14 +120,14 @@ function CagExamples() {
     <details className="group mt-3 rounded-[14px] bg-field shadow-[0_0_0_1px_var(--line)]">
       <summary className="flex cursor-pointer list-none items-center justify-between px-3 py-2.5 text-[13.5px] font-medium [&::-webkit-details-marker]:hidden">
         <span>
-          Ejemplos estáticos
+          {t('sidebar.examples')}
           {context && <span className="ml-2 font-mono text-[11px] font-normal text-faint">{context.prompt_version}</span>}
         </span>
         <Chevron className="size-3 text-faint transition-transform duration-200 ease-out-strong group-open:rotate-180 motion-reduce:transition-none" />
       </summary>
       <div className="max-h-[46vh] overflow-y-auto border-t border-line px-3 pt-1 pb-3">
         {error && <p className="pt-2 text-xs text-danger">{error}</p>}
-        {!error && !context && <p className="pt-2 text-xs text-faint">Cargando ejemplos…</p>}
+        {!error && !context && <p className="pt-2 text-xs text-faint">{t('sidebar.examples.loading')}</p>}
         {context && <Markdown className="md-compact" breaks={false}>{context.examples_markdown}</Markdown>}
       </div>
     </details>

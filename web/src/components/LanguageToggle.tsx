@@ -1,5 +1,6 @@
-import { RESPONSE_LANGUAGES } from '../api/types'
 import type { ResponseLanguage } from '../api/types'
+import { useLocale, useT } from '../i18n/useLocale'
+import { languageOptions } from '../i18n/messages'
 import { SegmentedControl } from './SegmentedControl'
 import type { SegmentOption } from './SegmentedControl'
 
@@ -8,18 +9,20 @@ interface LanguageToggleProps {
   onChange: (language: ResponseLanguage) => void
 }
 
-const OPTIONS: SegmentOption<ResponseLanguage>[] = RESPONSE_LANGUAGES.map(({ value, label }) => ({
-  value,
-  label,
-  icon: (
-    <span aria-hidden="true" className="font-mono text-[10px] tracking-wide uppercase opacity-70">
-      {value}
-    </span>
-  ),
-}))
-
 export function LanguageToggle({ value, onChange }: LanguageToggleProps) {
+  const t = useT()
+  const locale = useLocale()
+  const options: SegmentOption<ResponseLanguage>[] = languageOptions(locale).map(({ value: optionValue, label }) => ({
+    value: optionValue,
+    label,
+    icon: (
+      <span aria-hidden="true" className="font-mono text-[10px] tracking-wide uppercase opacity-70">
+        {optionValue}
+      </span>
+    ),
+  }))
+
   return (
-    <SegmentedControl name="response-language" label="Idioma de respuesta" value={value} options={OPTIONS} onChange={onChange} />
+    <SegmentedControl name="response-language" label={t('language.label')} value={value} options={options} onChange={onChange} />
   )
 }

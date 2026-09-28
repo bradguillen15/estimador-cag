@@ -57,15 +57,29 @@ describe('App', () => {
   it('sends Spanish by default and the newly selected language on the next request', async () => {
     vi.mocked(createEstimate).mockResolvedValue({ text: '## Estimación: Gimnasio', prompt_version: 'v2' })
     const user = await fillForm()
-    const submit = screen.getByRole('button', { name: 'Generar estimación' })
 
-    await user.click(submit)
+    await user.click(screen.getByRole('button', { name: 'Generar estimación' }))
     await screen.findByRole('heading', { name: 'Estimación: Gimnasio' })
     expect(createEstimate).toHaveBeenLastCalledWith(expect.objectContaining({ language: 'es' }), expect.any(AbortSignal))
 
     await user.click(screen.getByRole('radio', { name: /English/ }))
-    await user.click(submit)
+    await user.click(screen.getByRole('button', { name: 'Generate estimate' }))
     expect(createEstimate).toHaveBeenLastCalledWith(expect.objectContaining({ language: 'en' }), expect.any(AbortSignal))
+  })
+
+  it('switches the visible UI copy when the language changes', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(/Estimador de/)
+    expect(screen.getByRole('button', { name: 'Generar estimación' })).toBeInTheDocument()
+
+    await user.click(screen.getByRole('radio', { name: /English/ }))
+
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(/Software/)
+    expect(screen.getByRole('button', { name: 'Generate estimate' })).toBeInTheDocument()
+    expect(screen.getByLabelText(/project description/i)).toBeInTheDocument()
+    expect(document.documentElement.lang).toBe('en')
   })
 
   it('includes the language in streaming requests too', async () => {
@@ -74,7 +88,7 @@ describe('App', () => {
 
     await user.click(screen.getByRole('radio', { name: /English/ }))
     await user.click(screen.getByRole('switch', { name: /streaming/i }))
-    await user.click(screen.getByRole('button', { name: 'Generar estimación' }))
+    await user.click(screen.getByRole('button', { name: 'Generate estimate' }))
 
     expect(streamEstimate).toHaveBeenCalledWith(expect.objectContaining({ language: 'en' }), expect.any(AbortSignal))
   })
@@ -88,6 +102,7 @@ describe('App', () => {
     render(<App />)
 
     expect(screen.getByRole('radio', { name: /English/ })).toBeChecked()
+    expect(screen.getByRole('button', { name: 'Generate estimate' })).toBeInTheDocument()
   })
 
   it('shows API failures and lets the user retry', async () => {

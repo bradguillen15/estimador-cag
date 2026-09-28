@@ -1,20 +1,25 @@
-import { render, screen } from '@testing-library/react'
+import { screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 
+import { withLocale } from '../test/render'
 import { EstimateForm } from './EstimateForm'
 
 const DESCRIPTION = 'Portal interno para reservar salas de reuniones.'
 
-function setup(busy = false) {
+function setup(busy = false, locale: 'es' | 'en' = 'es') {
   const onSubmit = vi.fn()
   const user = userEvent.setup()
-  render(<EstimateForm busy={busy} onSubmit={onSubmit} />)
+  withLocale(<EstimateForm busy={busy} onSubmit={onSubmit} />, locale)
   return {
     onSubmit,
     user,
-    description: screen.getByLabelText(/descripción del proyecto/i),
-    submit: screen.getByRole('button', { name: /generar estimación|generando/i }),
+    description: screen.getByLabelText(
+      locale === 'es' ? /descripción del proyecto/i : /project description/i,
+    ),
+    submit: screen.getByRole('button', {
+      name: locale === 'es' ? /generar estimación|generando/i : /generate estimate|generating/i,
+    }),
   }
 }
 
@@ -68,6 +73,20 @@ describe('EstimateForm', () => {
       detail_level: 'detailed',
       output_format: 'narrative',
     })
+  })
+
+  it('shows English labels when the locale is English', async () => {
+    const { user, description, submit, onSubmit } = setup(false, 'en')
+
+    expect(screen.getByLabelText('Project type')).toBeInTheDocument()
+    await user.type(description, DESCRIPTION)
+    await user.selectOptions(screen.getByLabelText('Project type'), 'Data pipeline')
+    await user.click(submit)
+
+    expect(onSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({ project_type: 'data_pipeline' }),
+    )
+    expect(submit).toHaveTextContent('Generate estimate')
   })
 
   it('submits with Cmd/Ctrl+Enter from the description', async () => {

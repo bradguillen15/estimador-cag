@@ -1,3 +1,4 @@
+import { t } from '../i18n/locale'
 import type { EstimationRequest, EstimationResponse, GenerationMeta, PromptContext, StreamEvent } from './types'
 
 /** Empty = same origin (Vite proxy in dev, FastAPI serving web/dist in prod). */
@@ -21,9 +22,7 @@ async function send(path: string, init?: RequestInit): Promise<Response> {
     response = await fetch(`${API_BASE}${path}`, init)
   } catch (error) {
     if (error instanceof DOMException && error.name === 'AbortError') throw error
-    throw new ApiError(
-      `No se pudo conectar a la API en ${API_LABEL}. Levanta el servicio con: uv run uvicorn app.main:app --reload`,
-    )
+    throw new ApiError(t('error.connect', { api: API_LABEL }))
   }
   if (!response.ok) throw await toApiError(response)
   return response
@@ -37,7 +36,7 @@ async function toApiError(response: Response): Promise<ApiError> {
   } catch {
     // Non-JSON error body: keep the status text.
   }
-  return new ApiError(`Error HTTP ${response.status}: ${detail}`, response.status)
+  return new ApiError(t('error.http', { status: response.status, detail }), response.status)
 }
 
 /** FastAPI returns a string for HTTPException and a list of issues for 422s. */
@@ -81,7 +80,7 @@ export async function* streamEstimate(body: EstimationRequest, signal?: AbortSig
     ...jsonInit(body, signal),
     headers: { 'Content-Type': 'application/json', Accept: 'text/event-stream' },
   })
-  if (!response.body) throw new ApiError('La respuesta de streaming llegó vacía.')
+  if (!response.body) throw new ApiError(t('error.streamEmpty'))
 
   const reader = response.body.pipeThrough(new TextDecoderStream()).getReader()
   let buffer = ''
@@ -121,7 +120,7 @@ function parseEvent(block: string): StreamEvent | null {
     case 'done':
       return { type: 'done', meta: payload as GenerationMeta }
     case 'error':
-      return { type: 'error', detail: (payload as { detail?: string }).detail ?? 'Error desconocido' }
+      return { type: 'error', detail: (payload as { detail?: string }).detail ?? t('error.unknown') }
     default:
       return null
   }

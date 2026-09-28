@@ -1,8 +1,9 @@
-import { render, screen, within } from '@testing-library/react'
+import { screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { checkHealth, getPromptContext } from '../api/client'
+import { withLocale } from '../test/render'
 import { Sidebar } from './Sidebar'
 
 vi.mock('../api/client', async (importOriginal) => ({
@@ -14,17 +15,17 @@ vi.mock('../api/client', async (importOriginal) => ({
 const checkHealthMock = vi.mocked(checkHealth)
 const getPromptContextMock = vi.mocked(getPromptContext)
 
-function renderSidebar(overrides: Partial<Parameters<typeof Sidebar>[0]> = {}) {
+function renderSidebar(overrides: Partial<Parameters<typeof Sidebar>[0]> = {}, locale: 'es' | 'en' = 'es') {
   const props = {
     streaming: false,
     onStreamingChange: vi.fn(),
-    language: 'es' as const,
+    language: locale,
     onLanguageChange: vi.fn(),
     theme: 'light' as const,
     onThemeChange: vi.fn(),
     ...overrides,
   }
-  render(<Sidebar {...props} />)
+  withLocale(<Sidebar {...props} />, locale)
   return props
 }
 
@@ -43,6 +44,11 @@ describe('Sidebar', () => {
     checkHealthMock.mockResolvedValue(false)
     renderSidebar()
     expect(await screen.findByText('API no disponible')).toBeInTheDocument()
+  })
+
+  it('shows English API status labels when the locale is English', async () => {
+    renderSidebar({}, 'en')
+    expect(await screen.findByText('API available')).toBeInTheDocument()
   })
 
   it('shows the CAG examples the server injects, with their prompt version', async () => {
@@ -77,10 +83,10 @@ describe('Sidebar', () => {
     expect(screen.getByText(/SSE — mismo formulario/)).toBeInTheDocument()
   })
 
-  it('offers Spanish and English as response languages, with the current one selected', () => {
+  it('offers Spanish and English as languages, with the current one selected', () => {
     renderSidebar()
 
-    const group = screen.getByRole('radiogroup', { name: 'Idioma de respuesta' })
+    const group = screen.getByRole('radiogroup', { name: 'Idioma' })
     expect(within(group).getByRole('radio', { name: /Español/ })).toBeChecked()
     expect(within(group).getByRole('radio', { name: /English/ })).not.toBeChecked()
   })

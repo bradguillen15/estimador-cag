@@ -1,14 +1,10 @@
 import { useState } from 'react'
 import type { FormEvent, KeyboardEvent } from 'react'
 
-import {
-  DESCRIPTION_MAX,
-  DESCRIPTION_MIN,
-  DETAIL_LEVELS,
-  OUTPUT_FORMATS,
-  PROJECT_TYPES,
-} from '../api/types'
+import { DESCRIPTION_MAX, DESCRIPTION_MIN } from '../api/types'
 import type { DetailLevel, EstimationInput, OutputFormat, ProjectType } from '../api/types'
+import { useLocale, useT } from '../i18n/useLocale'
+import { detailLevelOptions, outputFormatOptions, projectTypeOptions } from '../i18n/messages'
 import { Chevron } from './icons'
 
 interface EstimateFormProps {
@@ -17,6 +13,8 @@ interface EstimateFormProps {
 }
 
 export function EstimateForm({ busy, onSubmit }: EstimateFormProps) {
+  const t = useT()
+  const locale = useLocale()
   const [description, setDescription] = useState('')
   const [projectType, setProjectType] = useState<ProjectType>('mobile_app')
   const [detailLevel, setDetailLevel] = useState<DetailLevel>('medium')
@@ -53,10 +51,10 @@ export function EstimateForm({ busy, onSubmit }: EstimateFormProps) {
       className="animate-enter rounded-[22px] bg-surface p-5 shadow-card [animation-delay:90ms] md:p-7"
     >
       <label htmlFor="description" className="mb-2 flex items-baseline justify-between text-[13px] font-medium">
-        Descripción del proyecto
+        {t('form.description')}
         <span className={`font-mono text-xs font-normal tabular-nums ${length > 0 && !valid ? 'text-danger' : 'text-faint'}`}>
           {length} / {DESCRIPTION_MAX}
-          {length > 0 && length < DESCRIPTION_MIN && ` · mínimo ${DESCRIPTION_MIN}`}
+          {length > 0 && length < DESCRIPTION_MIN && ` · ${t('form.description.min', { min: DESCRIPTION_MIN })}`}
         </span>
       </label>
       <textarea
@@ -65,19 +63,37 @@ export function EstimateForm({ busy, onSubmit }: EstimateFormProps) {
         onChange={(event) => setDescription(event.target.value)}
         onKeyDown={handleKeyDown}
         maxLength={DESCRIPTION_MAX}
-        placeholder="Ej.: Necesitamos un MVP web de e-commerce con catálogo, carrito, pagos y panel de administración…"
+        placeholder={t('form.placeholder')}
         className={`${CONTROL} block min-h-[150px] resize-y px-3.5 py-3 leading-relaxed placeholder:text-faint`}
       />
 
       <div className="mt-5 grid gap-3.5 md:grid-cols-3">
-        <Select id="project_type" label="Tipo de proyecto" value={projectType} options={PROJECT_TYPES} onChange={setProjectType} />
-        <Select id="detail_level" label="Nivel de detalle" value={detailLevel} options={DETAIL_LEVELS} onChange={setDetailLevel} />
-        <Select id="output_format" label="Formato de salida" value={outputFormat} options={OUTPUT_FORMATS} onChange={setOutputFormat} />
+        <Select
+          id="project_type"
+          label={t('form.projectType')}
+          value={projectType}
+          options={projectTypeOptions(locale)}
+          onChange={setProjectType}
+        />
+        <Select
+          id="detail_level"
+          label={t('form.detailLevel')}
+          value={detailLevel}
+          options={detailLevelOptions(locale)}
+          onChange={setDetailLevel}
+        />
+        <Select
+          id="output_format"
+          label={t('form.outputFormat')}
+          value={outputFormat}
+          options={outputFormatOptions(locale)}
+          onChange={setOutputFormat}
+        />
       </div>
 
       <div className="mt-6 flex items-center justify-between gap-4">
         <span className="hidden text-xs text-faint sm:inline">
-          <Kbd>⌘</Kbd> <Kbd>↵</Kbd> para generar
+          <Kbd>⌘</Kbd> <Kbd>↵</Kbd> {t('form.shortcut')}
         </span>
         <button
           type="submit"
@@ -90,7 +106,7 @@ export function EstimateForm({ busy, onSubmit }: EstimateFormProps) {
               className="size-3.5 animate-spin rounded-full border-2 border-current border-r-transparent [animation-duration:600ms]"
             />
           )}
-          {busy ? 'Generando…' : 'Generar estimación'}
+          {busy ? t('form.submitting') : t('form.submit')}
         </button>
       </div>
     </form>

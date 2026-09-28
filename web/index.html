@@ -11,12 +11,15 @@
       rel="stylesheet"
     />
     <script>
-      // Apply the theme before first paint: dark by default, light only if the user chose it.
+      // Apply theme + locale before first paint (defaults: dark, Spanish).
       var theme = 'dark'
+      var lang = 'es'
       try {
         if (localStorage.getItem('theme') === 'light') theme = 'light'
+        if (localStorage.getItem('response-language') === 'en') lang = 'en'
       } catch {}
       document.documentElement.dataset.theme = theme
+      document.documentElement.lang = lang
     </script>
   </head>
   <body>

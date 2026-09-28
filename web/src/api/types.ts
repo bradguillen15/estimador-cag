@@ -6,7 +6,7 @@ export type OutputFormat = 'phases_table' | 'line_items' | 'narrative'
 /** Language the model answers in. The API falls back to 'es' for anything else. */
 export type ResponseLanguage = 'es' | 'en'
 
-/** What the form collects; the response language comes from the sidebar. */
+/** What the form collects; language (UI + model response) comes from the sidebar. */
 export interface EstimationInput {
   description: string
   project_type: ProjectType
@@ -48,26 +48,5 @@ export const DESCRIPTION_MAX = 2000
 
 export const DEFAULT_RESPONSE_LANGUAGE: ResponseLanguage = 'es'
 
-export const RESPONSE_LANGUAGES: { value: ResponseLanguage; label: string }[] = [
-  { value: 'es', label: 'Español' },
-  { value: 'en', label: 'English' },
-]
-
-export const PROJECT_TYPES: { value: ProjectType; label: string }[] = [
-  { value: 'mobile_app', label: 'App móvil' },
-  { value: 'web_saas', label: 'Web / SaaS' },
-  { value: 'internal_tool', label: 'Herramienta interna' },
-  { value: 'data_pipeline', label: 'Pipeline de datos' },
-]
-
-export const DETAIL_LEVELS: { value: DetailLevel; label: string }[] = [
-  { value: 'summary', label: 'Resumen' },
-  { value: 'medium', label: 'Medio' },
-  { value: 'detailed', label: 'Detallado' },
-]
-
-export const OUTPUT_FORMATS: { value: OutputFormat; label: string }[] = [
-  { value: 'phases_table', label: 'Tabla por fases' },
-  { value: 'line_items', label: 'Partidas / line items' },
-  { value: 'narrative', label: 'Narrativo' },
-]
+/** Supported UI + model response languages. Labels live in i18n. */
+export const RESPONSE_LANGUAGES: readonly ResponseLanguage[] = ['es', 'en']
