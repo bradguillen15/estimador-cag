@@ -81,6 +81,14 @@ def test_default_response_language_is_spanish_with_the_original_labels() -> None
         assert label in block
 
 
+def test_spanish_block_steers_towards_natural_spanish_wording() -> None:
+    block = _system("es").split(LANGUAGE_HEADING)[1]
+    for term in ("### Supuestos", "### Desglose de tareas", "### Riesgos y fuera de alcance", "Fase | Tareas | Horas", "medio tiempo"):
+        assert term in block
+    # English responses must not be nudged towards Spanish wording.
+    assert "medio tiempo" not in _system("en").split(LANGUAGE_HEADING)[1]
+
+
 def test_english_requests_get_an_explicit_english_instruction_and_labels() -> None:
     block = _system("en").split(LANGUAGE_HEADING)[1]
     assert "Respond entirely in English" in block
