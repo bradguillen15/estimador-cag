@@ -86,7 +86,17 @@ that must pass CI (`.github/workflows/ci.yml`) and be up to date with `main`:
 - `api-tests`: `scripts/ci/api.sh`
 - `web-tests`: `pnpm install --frozen-lockfile` + `scripts/ci/web.sh`
 
-[CodeRabbit](https://coderabbit.ai) reviews each PR using `.coderabbit.yaml`.
+[CodeRabbit](https://coderabbit.ai) reviews PRs using `.coderabbit.yaml`, but **only on request**:
+CodeRabbit does not auto-review public repositories with fewer than 10 stars
+([docs](https://docs.coderabbit.ai/management/plans)). After opening a PR (and after pushing
+significant changes), ask for a review with one of:
+
+- `@coderabbitai review`: incremental review of the latest changes
+- `@coderabbitai full review`: review the whole PR from scratch
+- or tick **Trigger review** in CodeRabbit's status comment on the PR
+
+Its status check shows "Review skipped" until a review is requested; it never blocks the merge.
+Small open-source repos are limited to about one CodeRabbit review per hour.
 
 ## API
 

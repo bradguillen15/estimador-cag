@@ -1,5 +1,7 @@
 # yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
 # CodeRabbit AI review settings. Docs: https://docs.coderabbit.ai/getting-started/yaml-configuration
+# Public repos with fewer than 10 stars are not auto-reviewed: `auto_review` below only takes effect
+# above that threshold. Until then, request reviews with `@coderabbitai review` on the PR.
 
 language: en-US
 

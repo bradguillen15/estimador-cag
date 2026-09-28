@@ -340,6 +340,8 @@ CI (`.github/workflows/ci.yml`) runs both suites on every PR to `main`. `main` i
 only through a PR whose `api-tests` and `web-tests` checks pass (admins included). Those job names are
 required status checks — renaming them blocks every merge until branch protection is updated.
 CodeRabbit reviews PRs using `.coderabbit.yaml`, which points reviewers at the rules in this file.
+While the repo has fewer than 10 stars CodeRabbit does **not** auto-review: request it on each PR
+with `@coderabbitai review` (or `@coderabbitai full review`). It is advisory, not a required check.
 
 Pre-commit (Husky + lint-staged, installed by `pnpm install` via `prepare`) runs **the same checks as
 CI**: both call `scripts/ci/api.sh` and `scripts/ci/web.sh`, against the staged snapshot only. To
