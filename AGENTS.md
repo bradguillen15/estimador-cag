@@ -29,19 +29,21 @@ more context sources) **without rewriting it**.
 | Python | 3.13 (`.python-version`) |
 | Package manager | `uv` (lockfile: `uv.lock`) |
 | Web | FastAPI + Uvicorn |
-| Frontend | React 19 + TypeScript + Tailwind v4 on Vite 6 (`web/`, npm) |
+| Frontend | React 19 + TypeScript + Tailwind v4 on Vite 6 (`web/`) |
+| JS package manager | **pnpm 10** workspace (root + `web/`, one `pnpm-lock.yaml`). npm/yarn are blocked. |
 | Config | pydantic-settings |
 | LLM SDK | `openai` |
 
 ```bash
 uv sync                                    # install deps
 cp .env.example .env                       # then fill the keys
-npm run dev                                # run API + UI together (Ctrl+C stops both)
+pnpm install                               # install UI deps (whole workspace)
+pnpm dev                                   # run API + UI together (Ctrl+C stops both)
 uv run uvicorn app.main:app --reload       # run API (http://127.0.0.1:8000/docs)
-npm --prefix web install                   # install UI deps
-npm --prefix web run dev                   # run UI (http://localhost:5173, proxies /api → :8000)
-npm --prefix web run build                 # build UI → web/dist, served by FastAPI at /
-npm --prefix web run lint                  # ESLint (build also type-checks with tsc)
+pnpm dev:web                               # run UI only (http://localhost:5173, proxies /api → :8000)
+pnpm build                                 # build UI → web/dist, served by FastAPI at /
+pnpm lint                                  # ESLint (build also type-checks with tsc)
+pnpm --filter estimador-web add <pkg>      # add a UI dependency (never npm install)
 uv add <pkg>                               # add a dependency (never edit pyproject by hand)
 ```
 
@@ -314,11 +316,11 @@ Fix these opportunistically when you touch the surrounding code; do not replicat
 ## 8. Testing and quality
 
 ```bash
-npm test                 # both suites from the repo root (API first, then UI)
-npm run test:api         # uv run pytest  (tests/)
-npm run test:web         # vitest run     (web/src/**/*.test.ts[x])
-npm run test:watch       # vitest in watch mode (UI)
-npm run test:coverage    # pytest --cov=app + vitest --coverage
+pnpm test                # both suites from the repo root (API first, then UI)
+pnpm test:api            # uv run pytest  (tests/)
+pnpm test:web            # vitest run     (web/src/**/*.test.ts[x])
+pnpm test:watch          # vitest in watch mode (UI)
+pnpm test:coverage       # pytest --cov=app + vitest --coverage
 ```
 
 - API: `pytest` + `TestClient`. `tests/conftest.py` pins fake settings and **fails any test that
@@ -351,5 +353,5 @@ Before finishing any change:
 - [ ] New settings added to `config.py` **and** `.env.example`; no secret committed
 - [ ] Errors mapped to the right status codes; nothing swallowed
 - [ ] `uv run uvicorn app.main:app --reload` boots and `/health` returns `{"status": "ok"}`
-- [ ] If `web/` changed: `npm --prefix web run build` and `npm --prefix web run lint` pass
+- [ ] If `web/` changed: `pnpm build` and `pnpm lint` pass
 - [ ] `README.md` / `AGENTS.md` updated if structure or workflow changed

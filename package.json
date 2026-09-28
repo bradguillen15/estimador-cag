@@ -2,14 +2,23 @@
   "name": "estimador-cag",
   "private": true,
   "description": "Root task runner: orchestrates the Python API (uv) and the React UI (web/).",
+  "packageManager": "pnpm@10.33.1",
+  "engines": {
+    "node": ">=20.18",
+    "pnpm": ">=10",
+    "npm": "use-pnpm-instead"
+  },
   "scripts": {
+    "preinstall": "node scripts/only-pnpm.mjs",
     "dev": "node scripts/dev.mjs",
     "dev:api": "uv run uvicorn app.main:app --reload",
-    "dev:web": "npm --prefix web run dev",
-    "test": "npm run test:api && npm run test:web",
+    "dev:web": "pnpm --filter estimador-web dev",
+    "build": "pnpm --filter estimador-web build",
+    "lint": "pnpm --filter estimador-web lint",
+    "test": "pnpm run test:api && pnpm run test:web",
     "test:api": "uv run pytest",
-    "test:web": "npm --prefix web test",
-    "test:watch": "npm --prefix web run test:watch",
-    "test:coverage": "uv run pytest --cov=app --cov-report=term-missing && npm --prefix web run test:coverage"
+    "test:web": "pnpm --filter estimador-web test",
+    "test:watch": "pnpm --filter estimador-web test:watch",
+    "test:coverage": "uv run pytest --cov=app --cov-report=term-missing && pnpm --filter estimador-web test:coverage"
   }
 }

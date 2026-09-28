@@ -5,7 +5,7 @@ import { spawn } from 'node:child_process'
 
 const PROCESSES = [
   { name: 'api', color: 36, command: 'uv', args: ['run', 'uvicorn', 'app.main:app', '--reload'] },
-  { name: 'web', color: 35, command: 'npm', args: ['--prefix', 'web', 'run', 'dev'] },
+  { name: 'web', color: 35, command: 'pnpm', args: ['--filter', 'estimador-web', 'dev'] },
 ]
 
 const children = []

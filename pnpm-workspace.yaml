@@ -1,0 +1,9 @@
+packages:
+  - web
+
+# pnpm 10 skips dependency install scripts unless allowed. esbuild (Vite's bundler) needs its own.
+onlyBuiltDependencies:
+  - esbuild
+
+# .npmrc sets engine-strict for npm's sake; pnpm keeps the default (warn on dependency engines).
+engineStrict: false

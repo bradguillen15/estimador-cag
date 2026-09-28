@@ -36,24 +36,25 @@ estimador-cag/
 # Desde estimador-cag/
 uv sync
 cp .env.example .env   # y completa OPEN_API_KEY
-npm --prefix web install
+pnpm install
 ```
 
-Requiere Python 3.13 (`uv`) y Node 20+.
+Requiere Python 3.13 (`uv`), Node 20+ y **pnpm 10** (el repo es un workspace de pnpm; `npm install`
+está bloqueado para no tener dos lockfiles).
 
 ## Run
 
 ### Desarrollo
 
 ```bash
-npm run dev
+pnpm dev
 ```
 
 Levanta la API (FastAPI con `--reload`, :8000) y la UI (Vite, http://localhost:5173)
 en una sola terminal, con logs prefijados `[api]` / `[web]`. `Ctrl+C` detiene ambos, y si
 uno de los dos falla (p. ej. el puerto 8000 ocupado) el otro se detiene también.
 
-Por separado: `npm run dev:api` y `npm run dev:web`.
+Por separado: `pnpm dev:api` y `pnpm dev:web`.
 
 Vite hace proxy de `/api` y `/health` a `http://127.0.0.1:8000`, así que la UI usa
 URLs relativas y no hace falta CORS. El formulario envía un `EstimationRequest`
@@ -63,7 +64,7 @@ interruptor de la barra lateral.
 ### Un solo proceso (build)
 
 ```bash
-npm --prefix web run build
+pnpm build
 uv run uvicorn app.main:app
 ```
 
@@ -72,9 +73,9 @@ Si existe `web/dist`, FastAPI sirve la UI en `/` (la API, `/health` y `/docs` ti
 ## Tests
 
 ```bash
-npm test               # API (pytest) + UI (Vitest), desde la raíz
-npm run test:watch     # UI en modo watch
-npm run test:coverage  # cobertura de ambos
+pnpm test               # API (pytest) + UI (Vitest), desde la raíz
+pnpm test:watch         # UI en modo watch
+pnpm test:coverage      # cobertura de ambos
 ```
 
 Los tests nunca llaman al LLM real: la API usa un proveedor falso y la UI simula `web/src/api/client.ts`.
@@ -86,7 +87,7 @@ pull request. Para mergear, el PR debe pasar los checks de CI (`.github/workflow
 al día con `main`:
 
 - `api-tests` — `uv sync --locked` + `pytest`
-- `web-tests` — `npm ci` + lint + Vitest + build (incluye type-check)
+- `web-tests` — `pnpm install --frozen-lockfile` + lint + Vitest + build (incluye type-check)
 
 [CodeRabbit](https://coderabbit.ai) revisa cada PR con las reglas de `.coderabbit.yaml`.
 
