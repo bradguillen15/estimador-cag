@@ -333,6 +333,11 @@ only through a PR whose `api-tests` and `web-tests` checks pass (admins included
 required status checks — renaming them blocks every merge until branch protection is updated.
 CodeRabbit reviews PRs using `.coderabbit.yaml`, which points reviewers at the rules in this file.
 
+Pre-commit (Husky + lint-staged, installed by `pnpm install` via `prepare`): `lint-staged.config.mjs`
+runs pytest when API/prompt files are staged, and ESLint + `vitest related` for staged web files,
+against the staged snapshot only. It is a fast local gate, not a substitute for CI. Don't bypass it
+with `--no-verify` to land failing code.
+
 Rules:
 
 - Test **services** directly with a fake `LLMProvider` — never hit a real API in a test.

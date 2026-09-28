@@ -80,6 +80,22 @@ pnpm test:coverage      # cobertura de ambos
 
 Los tests nunca llaman al LLM real: la API usa un proveedor falso y la UI simula `web/src/api/client.ts`.
 
+### Pre-commit
+
+`pnpm install` instala un hook de git (Husky + lint-staged) que revisa **solo lo que vas a
+commitear** y bloquea el commit si algo falla:
+
+| Si cambias… | Se ejecuta |
+|---|---|
+| `app/`, `tests/`, `pyproject.toml`, `uv.lock` | toda la suite de la API (`pytest`, ~1.5 s) |
+| `web/src/**/*.ts(x)` | ESLint de esos archivos + los tests de Vitest que los importan |
+| config de la UI (`web/package.json`, `vite.config.ts`, `index.css`, `pnpm-lock.yaml`…) | toda la suite web |
+| solo docs u otros archivos | nada |
+
+La suite completa tarda ~11 s, así que el hook corre solo el área tocada; CI corre todo en cada PR.
+Necesita `uv` y `pnpm` en el `PATH` (clientes git gráficos incluidos). Para saltarlo en una
+emergencia: `git commit --no-verify` (CI igual bloqueará el merge si algo falla).
+
 ## Flujo de trabajo (PRs)
 
 `main` está protegida: no se puede hacer push directo (tampoco los admins) y todo cambio entra por

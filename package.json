@@ -10,6 +10,7 @@
   },
   "scripts": {
     "preinstall": "node scripts/only-pnpm.mjs",
+    "prepare": "husky",
     "dev": "node scripts/dev.mjs",
     "dev:api": "uv run uvicorn app.main:app --reload",
     "dev:web": "pnpm --filter estimador-web dev",
@@ -20,5 +21,9 @@
     "test:web": "pnpm --filter estimador-web test",
     "test:watch": "pnpm --filter estimador-web test:watch",
     "test:coverage": "uv run pytest --cov=app --cov-report=term-missing && pnpm --filter estimador-web test:coverage"
+  },
+  "devDependencies": {
+    "husky": "^9.1.7",
+    "lint-staged": "^16.4.0"
   }
 }
