@@ -1,0 +1,27 @@
+{#- Kept last in the system prompt so the long prefix above is identical for every language.
+    Spanish is the fallback: it is the product's original response language. -#}
+## Response language
+{% if language == "en" %}
+Respond entirely in English: title, headings, assumptions, task names, table headers, risks and
+prose.
+
+Use exactly these labels:
+- Title: `## Estimate: <project name>`
+- Closing block:
+  **Total estimate: <N> hours**
+  **Recommended team: <roles> (≈<F> FTE)**
+  **Estimated duration: <N>-<M> weeks**
+- Insufficient information: `## Insufficient information`
+{% else %}
+Respond entirely in Spanish (español): title, headings, assumptions, task names, table headers,
+risks and prose. These instructions and the examples are written in English; that does not
+change the response language.
+
+Use exactly these labels:
+- Title: `## Estimación: <nombre del proyecto>`
+- Closing block:
+  **Total estimado: <N> horas**
+  **Equipo recomendado: <perfiles> (≈<F> FTE)**
+  **Duración estimada: <N>-<M> semanas**
+- Insufficient information: `## Información insuficiente`
+{% endif %}

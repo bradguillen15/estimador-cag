@@ -38,9 +38,10 @@ def _render(version: str, template: str, **context: str) -> str:
 
 
 @lru_cache
-def _system_prompt(version: str) -> str:
-    # Static per version: identical prefix on every request, so the provider can cache it.
-    return _render(version, "system.j2")
+def _system_prompt(version: str, language: str) -> str:
+    # No request data: one prompt per (version, language). The language block goes last, so the
+    # long instructions + examples prefix stays identical and cacheable across languages.
+    return _render(version, "system.j2", language=language)
 
 
 def render_estimation_examples(version: str) -> str:
@@ -51,10 +52,12 @@ def render_estimation_examples(version: str) -> str:
 def render_estimation_prompt(
     request: EstimationRequest,
     version: str,
+    language: str = "es",
 ) -> tuple[str, str]:
     """Return ``(system, user)`` prompts ready for the LLM.
 
-    Templates live under ``app/prompts/estimation/<version>/``.
+    Templates live under ``app/prompts/estimation/<version>/``; ``language`` is the response
+    language the system prompt asks the model to answer in.
     """
     user = _render(
         version,
@@ -64,4 +67,4 @@ def render_estimation_prompt(
         detail_level=request.detail_level.value,
         output_format=request.output_format.value,
     )
-    return _system_prompt(version), user
+    return _system_prompt(version, language), user

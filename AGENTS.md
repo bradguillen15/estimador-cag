@@ -275,9 +275,11 @@ is a secret; a missing optional var must not crash boot (see §7).
 
 ### 6.2 Language
 
-Identifiers, type names and this document are **English**. Domain content — prompts, examples,
-user-facing messages and module docstrings — is **Spanish**, matching the product. Do not mix within
-a single string.
+Identifiers, type names, this document and **LLM prompts and few-shot examples** (`app/prompts/`,
+from `v2`) are **English**. User-facing messages, UI copy and module docstrings are **Spanish**,
+matching the product. The model's *response* language is set by the prompt's closing
+"Response language" block (`language.j2`), not by the language the instructions are written in.
+Do not mix languages within a single string.
 
 ### 6.3 Errors
 

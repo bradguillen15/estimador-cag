@@ -6,7 +6,7 @@ from app.prompts.loader import render_estimation_examples, render_estimation_pro
 from app.schemas.estimations import EstimationRequest
 from app.services.llm.base import GenerationMetrics, StreamingLLMProvider
 
-PROMPT_VERSION = "v1"
+PROMPT_VERSION = "v2"
 
 
 class EstimationService:

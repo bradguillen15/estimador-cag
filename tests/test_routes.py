@@ -37,7 +37,7 @@ def test_health(client: TestClient) -> None:
 def test_context_returns_the_injected_examples(client: TestClient) -> None:
     body = client.get("/api/v1/context").json()
     assert body["prompt_version"] == PROMPT_VERSION
-    assert "### Ejemplo 1" in body["examples_markdown"]
+    assert "### Example 1" in body["examples_markdown"]
 
 
 # --- POST /estimate ---------------------------------------------------------------------------
