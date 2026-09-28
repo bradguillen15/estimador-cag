@@ -1,4 +1,4 @@
-"""Fixtures compartidos. El LLM nunca se llama de verdad: los tests usan fakes en su frontera."""
+"""Shared fixtures. The real LLM is never called: tests use fakes at its boundary."""
 
 import os
 

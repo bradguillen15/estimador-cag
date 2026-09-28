@@ -279,11 +279,16 @@ is a secret; a missing optional var must not crash boot (see §7).
 
 ### 6.2 Language
 
-Identifiers, type names, this document and **LLM prompts and few-shot examples** (`app/prompts/`,
-from `v2`) are **English**. User-facing messages, UI copy and module docstrings are **Spanish**,
-matching the product. The model's *response* language is set by the prompt's closing
-"Response language" block (`language.j2`), not by the language the instructions are written in.
-Do not mix languages within a single string.
+Everything developers read is **English**: identifiers, comments, docstrings, docs (README, this
+file), commit messages, logs, CLI/script output, config errors, and the LLM prompts and few-shot
+examples (`app/prompts/`, from `v2`).
+
+**Spanish** is only for what the end user sees: UI copy in `web/src/` and error messages that reach
+the UI (e.g. `LLMProviderError` messages, the unexpected-stream error, the API-unreachable message).
+Tests may use Spanish sample input and assert on Spanish UI text. The model's *response* language
+is chosen per request by the prompt's closing "Response language" block (`language.j2`), not by
+the language the instructions are written in. `app/prompts/estimation/v1/` is the original Spanish
+prompt, kept only for comparison/rollback. Do not mix languages within a single string.
 
 ### 6.3 Errors
 

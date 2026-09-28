@@ -1,4 +1,4 @@
-"""Proveedores de dependencias para FastAPI (``Depends``); sobrescribibles en tests."""
+"""FastAPI dependency providers (``Depends``); override them in tests via ``dependency_overrides``."""
 
 from functools import lru_cache
 

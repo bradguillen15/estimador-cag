@@ -1,4 +1,4 @@
-"""Selección del proveedor LLM a partir de ``LLM_PROVIDER``."""
+"""Picks the LLM provider from the ``LLM_PROVIDER`` setting."""
 
 from collections.abc import Callable
 
@@ -19,7 +19,7 @@ def get_llm_provider(settings: Settings) -> StreamingLLMProvider:
         build = _PROVIDERS[settings.llm_provider.strip().lower()]
     except KeyError:
         raise ValueError(
-            f"LLM_PROVIDER no soportado: {settings.llm_provider!r}. "
-            f"Opciones: {', '.join(sorted(_PROVIDERS))}"
+            f"Unsupported LLM_PROVIDER: {settings.llm_provider!r}. "
+            f"Options: {', '.join(sorted(_PROVIDERS))}"
         ) from None
     return build(settings)

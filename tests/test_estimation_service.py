@@ -1,4 +1,4 @@
-"""EstimationService: arma los prompts y delega en el proveedor (fake)."""
+"""EstimationService: renders the prompts and delegates to a (fake) provider."""
 
 import pytest
 
@@ -67,5 +67,5 @@ def test_factory_builds_the_configured_provider(name: str) -> None:
 
 
 def test_factory_rejects_unknown_providers() -> None:
-    with pytest.raises(ValueError, match="no soportado"):
+    with pytest.raises(ValueError, match="Unsupported LLM_PROVIDER"):
         get_llm_provider(_settings("llama-local"))

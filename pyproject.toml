@@ -1,7 +1,7 @@
 [project]
 name = "estimador-cag"
 version = "0.1.0"
-description = "Estimador de costos con CAG (Cache-Augmented Generation)"
+description = "Software effort estimator using CAG (Cache-Augmented Generation)"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [

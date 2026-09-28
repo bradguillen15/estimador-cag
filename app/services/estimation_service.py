@@ -1,4 +1,4 @@
-"""Caso de uso de estimación: arma los prompts y delega la llamada al proveedor LLM."""
+"""Estimation use case: renders the prompts and delegates the call to the LLM provider."""
 
 from collections.abc import Iterator
 
@@ -22,7 +22,7 @@ class EstimationService:
         return self._provider.model
 
     def context_examples(self) -> str:
-        """Ejemplos CAG que recibe el modelo en el system prompt (Markdown)."""
+        """CAG examples the model receives in the system prompt (Markdown)."""
         return render_estimation_examples()
 
     def generate(self, request: EstimationRequest) -> str:

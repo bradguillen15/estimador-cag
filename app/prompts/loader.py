@@ -1,4 +1,4 @@
-"""Carga y renderiza plantillas Jinja2 de estimación por versión."""
+"""Loads and renders the versioned Jinja2 estimation prompts."""
 
 from __future__ import annotations
 
@@ -20,7 +20,7 @@ PROMPT_VERSION = "v2"
 def _environment(version: str) -> Environment:
     version_dir = _PROMPTS_ROOT / "estimation" / version
     if not version_dir.is_dir():
-        raise PromptTemplateError(f"Versión de prompt desconocida: {version!r}")
+        raise PromptTemplateError(f"Unknown prompt version: {version!r}")
 
     return Environment(
         loader=FileSystemLoader(version_dir),
@@ -36,7 +36,7 @@ def _render(version: str, template: str, **context: str) -> str:
         return _environment(version).get_template(template).render(**context).strip()
     except TemplateNotFound as exc:
         raise PromptTemplateError(
-            f"Falta la plantilla {exc.name!r} en estimation/{version}/"
+            f"Missing template {exc.name!r} in estimation/{version}/"
         ) from exc
 
 

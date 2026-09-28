@@ -16,10 +16,10 @@ configure_logging()
 app = FastAPI(
     title="Estimador CAG",
     description=(
-        "API de estimación de proyectos de software con CAG "
-        "(Cache-Augmented Generation). Recibe la transcripción de una reunión "
-        "con el cliente y genera una estimación de esfuerzo usando ejemplos "
-        "históricos inyectados en el prompt."
+        "Software project effort estimation with CAG (Cache-Augmented Generation). "
+        "Takes a project description plus type, detail level, output format and response "
+        "language, and returns a Markdown estimate guided by curated examples injected "
+        "into the system prompt."
     ),
     version="0.1.0",
 )

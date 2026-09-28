@@ -1,7 +1,7 @@
-"""Contrato de los proveedores LLM.
+"""LLM provider contract.
 
-Todo proveedor devuelve texto y, ante cualquier fallo, lanza ``LLMProviderError``
-(nunca ``None`` ni un string vacío). Los tipos del SDK no salen de su módulo.
+Every provider returns text and raises ``LLMProviderError`` on any failure (never ``None``
+or an empty string). SDK types never leave the provider's own module.
 """
 
 from collections.abc import Iterator
@@ -11,7 +11,7 @@ from typing import Protocol
 
 @dataclass
 class GenerationMetrics:
-    """Métricas de la última llamada al LLM (rellenadas al terminar el stream)."""
+    """Metrics of the last LLM call (filled in when the stream finishes)."""
 
     model: str
     input_tokens: int | None = None

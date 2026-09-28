@@ -1,4 +1,4 @@
-"""Tests del template de estimación (Parte 4): renderizan plantillas, nunca llaman a un modelo."""
+"""Estimation template tests: they render templates and never call a model."""
 
 import pytest
 

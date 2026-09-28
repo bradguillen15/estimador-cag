@@ -1,1 +1,1 @@
-"""Proveedores LLM detrás de un contrato común (ver base.py)."""
+"""LLM providers behind a common contract (see base.py)."""

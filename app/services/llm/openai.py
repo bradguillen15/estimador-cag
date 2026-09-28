@@ -1,4 +1,4 @@
-"""Proveedor OpenAI: único módulo que conoce el SDK de OpenAI."""
+"""OpenAI provider: the only module that knows about the OpenAI SDK."""
 
 from collections.abc import Iterator
 from time import perf_counter

@@ -42,11 +42,11 @@ for (const { name, color, command, args } of PROCESSES) {
   pipeWithPrefix(child.stderr, process.stderr, label)
 
   child.on('error', (error) => {
-    process.stderr.write(`${label} no se pudo iniciar \`${command}\`: ${error.message}\n`)
+    process.stderr.write(`${label} could not start \`${command}\`: ${error.message}\n`)
     stopAll(1)
   })
   child.on('exit', (code, signal) => {
-    if (!stopping) process.stderr.write(`${label} terminó (${signal ?? `código ${code}`}); deteniendo el resto…\n`)
+    if (!stopping) process.stderr.write(`${label} exited (${signal ?? `code ${code}`}); stopping the rest…\n`)
     stopAll(code ?? 0)
   })
   children.push(child)

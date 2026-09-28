@@ -4,7 +4,7 @@
 const agent = process.env.npm_config_user_agent ?? ''
 
 if (!agent.startsWith('pnpm/')) {
-  const used = agent.split('/')[0] || 'otro gestor'
-  console.error(`\n  Este proyecto usa pnpm, no ${used}.\n  Instala las dependencias con:  pnpm install\n`)
+  const used = agent.split('/')[0] || 'another package manager'
+  console.error(`\n  This project uses pnpm, not ${used}.\n  Install dependencies with:  pnpm install\n`)
   process.exit(1)
 }

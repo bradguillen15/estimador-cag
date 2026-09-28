@@ -1,4 +1,4 @@
-"""Validación del contrato de entrada (EstimationRequest)."""
+"""Input contract validation (EstimationRequest)."""
 
 import pytest
 from pydantic import ValidationError

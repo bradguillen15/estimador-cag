@@ -1,4 +1,4 @@
-"""Structured logging (structlog): consola en desarrollo, JSON en producción."""
+"""Structured logging (structlog): readable console in development, JSON in production."""
 
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ import structlog
 
 from app.config import settings
 
-# USD per 1M tokens: (input, output). Fallback genérico si el modelo no está listado.
+# USD per 1M tokens: (input, output). Generic fallback when the model is not listed.
 _MODEL_PRICES_PER_1M: dict[str, tuple[float, float]] = {
     "gpt-4o-mini": (0.15, 0.60),
     "gpt-4o": (2.50, 10.00),

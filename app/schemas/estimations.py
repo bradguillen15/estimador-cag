@@ -1,4 +1,4 @@
-"""Contratos de request/response para el endpoint de estimaciones."""
+"""Request/response contracts for the estimation endpoints."""
 
 from enum import Enum
 
@@ -25,7 +25,7 @@ class OutputFormat(str, Enum):
 
 
 class ResponseLanguage(str, Enum):
-    """Idioma en el que el modelo debe responder (los prompts siempre están en inglés)."""
+    """Language the model must answer in (the prompts themselves are always in English)."""
 
     ES = "es"
     EN = "en"

@@ -1,1 +1,1 @@
-"""Paquete de plantillas y loaders de prompts."""
+"""Versioned Jinja2 prompt templates and their loader."""

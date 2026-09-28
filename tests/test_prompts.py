@@ -1,4 +1,4 @@
-"""Construcción de prompts (plantillas Jinja2 versionadas)."""
+"""Prompt construction (versioned Jinja2 templates)."""
 
 from collections.abc import Iterator
 from pathlib import Path
@@ -181,7 +181,7 @@ def test_every_prompt_version_still_renders(version: str) -> None:
 
 
 def test_unknown_prompt_version_raises_a_domain_error() -> None:
-    with pytest.raises(PromptTemplateError, match="desconocida"):
+    with pytest.raises(PromptTemplateError, match="Unknown prompt version"):
         render_estimation_prompt(_request(), version="v999")
 
 

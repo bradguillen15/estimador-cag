@@ -1,4 +1,4 @@
-"""Rutas HTTP/SSE con el servicio inyectado vía ``dependency_overrides`` (proveedor falso)."""
+"""HTTP/SSE routes with the service injected via ``dependency_overrides`` (fake provider)."""
 
 import json
 from typing import Any
@@ -99,7 +99,7 @@ def test_provider_failure_maps_to_502_with_a_safe_message(client: TestClient, fa
 
 
 def test_prompt_misconfiguration_maps_to_500(client: TestClient, fake_provider: FakeProvider) -> None:
-    fake_provider.error = PromptTemplateError("Falta la plantilla 'user.j2'")
+    fake_provider.error = PromptTemplateError("Missing template 'user.j2'")
     response = client.post("/api/v1/estimate", json=VALID_REQUEST)
     assert response.status_code == 500
     assert "user.j2" in response.json()["detail"]

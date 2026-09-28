@@ -1,13 +1,13 @@
-"""Excepciones de dominio. Los routers / handlers de main.py las traducen a HTTP."""
+"""Domain exceptions. The exception handlers in main.py translate them to HTTP responses."""
 
 
 class EstimationError(Exception):
-    """Base de los errores del flujo de estimación. Su mensaje es seguro para el cliente."""
+    """Base class for estimation errors. The message is safe to show to the end user."""
 
 
 class PromptTemplateError(EstimationError):
-    """La versión de prompt o una plantilla no existe: error de configuración del servidor."""
+    """A prompt version or template is missing: a server configuration error."""
 
 
 class LLMProviderError(EstimationError):
-    """El proveedor LLM falló (red, timeout, rate limit, respuesta vacía…)."""
+    """The LLM provider failed (network, timeout, rate limit, empty answer…)."""

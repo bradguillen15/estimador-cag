@@ -1,4 +1,4 @@
-"""OpenAIProvider: el SDK se sustituye por un cliente falso en su frontera (``chat.completions.create``)."""
+"""OpenAIProvider: the SDK is replaced by a fake client at its boundary (``chat.completions.create``)."""
 
 from collections.abc import Callable, Iterator
 from types import SimpleNamespace
