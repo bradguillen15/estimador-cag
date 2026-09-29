@@ -156,12 +156,17 @@ web/src/
 ├── hooks/                # useEstimation, useTheme, useResponseLanguage
 └── test/                 # Vitest setup and fixtures
 scripts/                  # dev runner, pnpm-only install guard
+docs/architecture/        # Architecture diagrams (archify source + rendered HTML)
 docs/screenshots/         # README screenshots
 docs/samples/             # Copy-paste project descriptions for manual UI checks
 ```
 
 Contributor rules (layers, conventions, recipes, definition of done) live in
 [AGENTS.md](AGENTS.md).
+
+**Architecture diagram:** [view it interactive on GitHub](https://htmlpreview.github.io/?https://github.com/bradguillen15/estimador-cag/blob/main/docs/architecture/estimation-flow/estimation-flow.html)
+(via htmlpreview), or open [the HTML file](docs/architecture/estimation-flow/estimation-flow.html)
+locally in a browser.
 
 ## Logging
 

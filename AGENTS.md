@@ -7,15 +7,19 @@ Read this before writing code. It defines *where* things go, *why*, and *what "d
 
 ## 1. What this app is
 
-A FastAPI service that turns a **client meeting transcript** into a **software effort estimation**,
-using **CAG (Cache-Augmented Generation)**: curated historical examples are injected into the system
-prompt instead of being retrieved at query time.
+A FastAPI service that turns a **project description** (e.g. notes from a client meeting) into a
+**software effort estimation**, using **CAG (Cache-Augmented Generation)**: curated historical
+examples are injected into the system prompt instead of being retrieved at query time.
 
-Single flow today:
+Single flow today (`/estimate` returns the full answer, `/estimate/stream` the same answer over SSE):
 
 ```
-POST /api/v1/estimate  →  router  →  LLMService  →  OpenAI  →  Markdown estimation
+POST /api/v1/estimate[/stream]  →  router  →  EstimationService  →  LLMProvider (OpenAI)  →  Markdown estimation
 ```
+
+The interactive diagram of this flow, with file/line sources per node, lives in
+[`docs/architecture/estimation-flow/estimation-flow.html`](docs/architecture/estimation-flow/estimation-flow.html)
+(see §5.5 to regenerate it).
 
 Everything in this document exists to keep that flow easy to extend (more providers, more endpoints,
 more context sources) **without rewriting it**.
@@ -266,6 +270,18 @@ already on the roadmap.
 `config.py` → `.env.example` → use it via injected `settings`. Give it a sensible default unless it
 is a secret; a missing optional var must not crash boot (see §7).
 
+### 5.5 Update the architecture diagram
+
+Diagrams in `docs/architecture/<name>/` are generated with the [archify](https://github.com/tt-a1i/archify)
+agent skill (installed per developer, not a project dependency). Only `candidate.json` (the editable
+source) and the rendered `<name>.html` are versioned; archify's `*.finalize*.json`,
+`*.browser-check.json` and `*.delivery.json` receipts are git-ignored.
+
+- When a change adds, removes or rewires a node shown in the diagram (router, service, provider,
+  prompt pipeline, error mapping), ask the agent to update `candidate.json` from the code and re-run
+  archify's `finalize` with `--repo-root .`, then commit both files with the change.
+- Every node cites its source files and lines; keep them pointing at real code, never at plans.
+
 ---
 
 ## 6. Conventions
@@ -294,8 +310,11 @@ prompt, kept only for comparison/rollback. Do not mix languages within a single 
 ### 6.3 Errors
 
 - Services raise domain exceptions from `app/exceptions.py`
-  (`EmptyTranscriptError`, `LLMProviderError`, …). Never `HTTPException`.
-- Routers translate them. Current mapping: invalid input → **400**, upstream LLM failure → **502**.
+  (`PromptTemplateError`, `LLMProviderError`, both subclasses of `EstimationError`). Never
+  `HTTPException`.
+- Current mapping: invalid input is rejected by the Pydantic schema → **422** (FastAPI default);
+  `PromptTemplateError` → **500**; upstream LLM failure (`LLMProviderError`) → **502**. On
+  `/estimate/stream` the response has already started, so failures arrive as an SSE `error` event.
 - Prefer a single `@app.exception_handler` per domain exception in `main.py` over repeating
   `try/except` in every handler.
 - Never swallow an exception silently and never leak provider stack traces or API keys in a response
