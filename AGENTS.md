@@ -17,9 +17,9 @@ Single flow today (`/estimate` returns the full answer, `/estimate/stream` the s
 POST /api/v1/estimate[/stream]  →  router  →  EstimationService  →  LLMProvider (OpenAI)  →  Markdown estimation
 ```
 
-The interactive diagram of this flow, with file/line sources per node, lives in
-[`docs/architecture/estimation-flow/estimation-flow.html`](docs/architecture/estimation-flow/estimation-flow.html)
-(see §5.5 to regenerate it).
+The interactive diagram of this flow, with file/line sources per node, is
+[viewable here](https://htmlpreview.github.io/?https://github.com/bradguillen15/estimador-cag/blob/main/docs/architecture/estimation-flow/estimation-flow.html)
+(source: `docs/architecture/estimation-flow/`; see §5.5 to regenerate it).
 
 Everything in this document exists to keep that flow easy to extend (more providers, more endpoints,
 more context sources) **without rewriting it**.
