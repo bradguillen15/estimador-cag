@@ -164,9 +164,8 @@ docs/samples/             # Copy-paste project descriptions for manual UI checks
 Contributor rules (layers, conventions, recipes, definition of done) live in
 [AGENTS.md](AGENTS.md).
 
-**Architecture diagram:** [view it interactive on GitHub](https://htmlpreview.github.io/?https://github.com/bradguillen15/estimador-cag/blob/main/docs/architecture/estimation-flow/estimation-flow.html)
-(via htmlpreview), or open [the HTML file](docs/architecture/estimation-flow/estimation-flow.html)
-locally in a browser.
+**Architecture diagram:** [open the interactive estimation flow](https://htmlpreview.github.io/?https://github.com/bradguillen15/estimador-cag/blob/main/docs/architecture/estimation-flow/estimation-flow.html).
+GitHub shows `.html` files as source, so the link goes through htmlpreview to render it.
 
 ## Logging
 
