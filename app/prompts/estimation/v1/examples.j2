@@ -1,0 +1,99 @@
+### Ejemplo 1 — Marketplace B2B de refacciones
+**Parámetros:** tipo `web_saas` · detalle `detailed` · formato `line_items`
+
+**Descripción:** Portal web para que talleres mecánicos pidan refacciones a distribuidores,
+con catálogo, cotizaciones, carrito B2B, roles (comprador/vendedor/admin) y notificaciones
+por email. Integración con el ERP del distribuidor vía API.
+
+**Estimación generada:**
+
+## Estimación: Marketplace B2B de refacciones
+
+### Supuestos
+- Un solo tenant (un distribuidor) en el MVP
+- Autenticación con email/password; sin SSO
+- El ERP expone endpoints REST documentados
+
+### Desglose de tareas
+1. Diseño UI/UX: 36 horas
+2. Backend catálogo y cotizaciones: 32 horas
+3. Backend carrito y pedidos: 24 horas
+4. Frontend portal (comprador + admin): 48 horas
+5. Autenticación y roles: 16 horas
+6. Integración ERP: 24 horas
+7. Notificaciones email: 12 horas
+8. Testing y QA: 28 horas
+
+### Riesgos y fuera de alcance
+- Calidad y disponibilidad de la API del ERP
+- Multi-distribuidor y SSO fuera de alcance del MVP
+- App móvil nativa fuera de alcance
+
+**Total estimado: 220 horas**
+**Equipo recomendado: 1 backend + 1 frontend + 1 UX part-time + 1 QA part-time (≈3 FTE)**
+**Duración estimada: 3-4 semanas**
+
+---
+
+### Ejemplo 2 — App de seguimiento de entrenamientos
+**Parámetros:** tipo `mobile_app` · detalle `medium` · formato `phases_table`
+
+**Descripción:** App móvil (iOS/Android) para registrar entrenamientos, planes semanales,
+progreso y recordatorios push. Backend propio y panel web mínimo para el coach.
+
+**Estimación generada:**
+
+## Estimación: App de entrenamientos
+
+### Supuestos
+- Un solo codebase multiplataforma (React Native o Flutter)
+- Push con FCM/APNs
+- El panel del coach es un CRUD básico, sin analítica avanzada
+
+| Fase | Tareas | Horas |
+|---|---|---|
+| Diseño | UI/UX de la app y del panel | 40 |
+| App móvil | Auth, planes, tracking de entrenamientos, notificaciones push | 88 |
+| Backend y panel | API, persistencia, panel web del coach | 80 |
+| QA y salida | Testing, publicación en stores | 24 |
+
+### Riesgos
+- Revisión de las stores puede retrasar el lanzamiento
+- Integración con wearables / Apple Health fuera de alcance
+
+**Total estimado: 232 horas**
+**Equipo recomendado: 1 móvil + 1 full-stack + 1 UX part-time (≈2.25 FTE)**
+**Duración estimada: 4-5 semanas**
+
+---
+
+### Ejemplo 3 — Pipeline de sincronización de leads
+**Parámetros:** tipo `data_pipeline` · detalle `summary` · formato `narrative`
+
+**Descripción:** Job programado que extrae leads de un CRM, los limpia/normaliza y los
+carga en un data warehouse, con alertas ante fallos y un dashboard simple de corridas.
+
+**Estimación generada:**
+
+## Estimación: Pipeline de leads CRM → warehouse
+
+### Alcance
+Sincronización periódica de leads desde un único CRM hacia el warehouse existente, con
+alertas ante fallos y visibilidad básica de cada corrida. Suponemos que el CRM tiene una API
+estable y que el warehouse ya está provisionado.
+
+### Enfoque y esfuerzo
+La extracción con reintentos y el diseño del modelo de datos suman 44 horas. La
+transformación y carga al warehouse, 24 horas. La orquestación, las alertas y el dashboard de
+corridas, 36 horas. Reservamos 16 horas para testing y QA.
+
+### Equipo y plazos
+Un perfil data/backend a tiempo completo lleva el pipeline, apoyado por un frontend a media
+jornada para el dashboard.
+
+### Riesgos
+Rate limits o cambios de esquema en el CRM; el scoring de leads queda fuera de alcance.
+
+**Total estimado: 120 horas**
+**Equipo recomendado: 1 data/backend + 1 frontend part-time (≈1.5 FTE)**
+**Duración estimada: 3-4 semanas**

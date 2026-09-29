@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Estimador CAG</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400;500&family=Manrope:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <script>
+      // Apply theme + locale before first paint (defaults: dark, Spanish).
+      var theme = 'dark'
+      var lang = 'es'
+      try {
+        if (localStorage.getItem('theme') === 'light') theme = 'light'
+        if (localStorage.getItem('response-language') === 'en') lang = 'en'
+      } catch {}
+      document.documentElement.dataset.theme = theme
+      document.documentElement.lang = lang
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

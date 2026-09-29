@@ -1,23 +1,58 @@
-"""Contratos de request/response para el endpoint de estimaciones."""
+"""Request/response contracts for the estimation endpoints."""
 
-from datetime import datetime
+from enum import Enum
 
-from pydantic import BaseModel, Field
-
-
-class EstimateRequest(BaseModel):
-    transcription: str = Field(
-        ...,
-        min_length=1,
-        description="Texto de la transcripción de la reunión a estimar",
-        examples=[
-            "En la reunión con el cliente se discutió la necesidad de una plataforma web..."
-        ],
-    )
+from pydantic import BaseModel, Field, field_validator
 
 
-class EstimateResponse(BaseModel):
-    estimation: str
-    model: str
-    provider: str
-    created_at: datetime
+class ProjectType(str, Enum):
+    MOBILE_APP = "mobile_app"
+    WEB_SAAS = "web_saas"
+    INTERNAL_TOOL = "internal_tool"
+    DATA_PIPELINE = "data_pipeline"
+
+
+class DetailLevel(str, Enum):
+    SUMMARY = "summary"
+    MEDIUM = "medium"
+    DETAILED = "detailed"
+
+
+class OutputFormat(str, Enum):
+    PHASES_TABLE = "phases_table"
+    LINE_ITEMS = "line_items"
+    NARRATIVE = "narrative"
+
+
+class ResponseLanguage(str, Enum):
+    """Language the model must answer in (the prompts themselves are always in English)."""
+
+    ES = "es"
+    EN = "en"
+
+
+class EstimationRequest(BaseModel):
+    description: str = Field(min_length=20, max_length=2000)
+    project_type: ProjectType
+    detail_level: DetailLevel
+    output_format: OutputFormat
+    language: ResponseLanguage = ResponseLanguage.ES
+
+    @field_validator("language", mode="before")
+    @classmethod
+    def _fallback_to_spanish(cls, value: object) -> ResponseLanguage:
+        # Lenient on purpose: a missing or unsupported language keeps the original behaviour
+        # (Spanish) instead of failing the whole estimation.
+        if isinstance(value, str) and value.strip().lower() in ResponseLanguage._value2member_map_:
+            return ResponseLanguage(value.strip().lower())
+        return ResponseLanguage.ES
+
+
+class EstimationResponse(BaseModel):
+    text: str
+    prompt_version: str
+
+
+class PromptContextResponse(BaseModel):
+    prompt_version: str
+    examples_markdown: str

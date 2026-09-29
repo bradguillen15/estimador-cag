@@ -1,29 +1,79 @@
-from datetime import datetime, timezone
+from collections.abc import AsyncIterator
+from typing import Annotated
 
-from fastapi import APIRouter, HTTPException
+import structlog
+from fastapi import APIRouter, Depends, Request
+from fastapi.sse import EventSourceResponse, ServerSentEvent
+from starlette.concurrency import iterate_in_threadpool
 
-from app.schemas.estimations import EstimateRequest, EstimateResponse
-from app.services.llm_service import LLMService
+from app.dependencies import get_estimation_service
+from app.exceptions import EstimationError
+from app.schemas.estimations import (
+    EstimationRequest,
+    EstimationResponse,
+    PromptContextResponse,
+)
+from app.services.estimation_service import PROMPT_VERSION, EstimationService
+from app.services.llm.base import GenerationMetrics
+
+logger = structlog.get_logger()
 
 router = APIRouter(tags=["estimations"])
-llm_service = LLMService()
+
+Service = Annotated[EstimationService, Depends(get_estimation_service)]
+
+_UNEXPECTED_STREAM_ERROR = "Error inesperado al generar la estimación."
 
 
-@router.post("/estimate", response_model=EstimateResponse)
-def create_estimate(body: EstimateRequest) -> EstimateResponse:
-    try:
-        estimation = llm_service.generate(body.transcription)
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
-    except Exception as exc:
-        raise HTTPException(
-            status_code=502,
-            detail=f"Error al generar la estimación con el proveedor LLM: {exc}",
-        ) from exc
-
-    return EstimateResponse(
-        estimation=estimation,
-        model=llm_service.model,
-        provider=llm_service.provider,
-        created_at=datetime.now(timezone.utc),
+@router.get("/context", response_model=PromptContextResponse)
+def get_prompt_context(service: Service) -> PromptContextResponse:
+    return PromptContextResponse(
+        prompt_version=PROMPT_VERSION,
+        examples_markdown=service.context_examples(),
     )
+
+
+# Domain errors are mapped to HTTP status codes by the exception handlers in main.py.
+@router.post("/estimate", response_model=EstimationResponse)
+def create_estimate(body: EstimationRequest, service: Service) -> EstimationResponse:
+    text = service.generate(body)
+    return EstimationResponse(text=text, prompt_version=PROMPT_VERSION)
+
+
+@router.post("/estimate/stream", response_class=EventSourceResponse)
+async def create_estimate_stream(
+    body: EstimationRequest,
+    request: Request,
+    service: Service,
+) -> AsyncIterator[ServerSentEvent]:
+    metrics = GenerationMetrics(model=service.model)
+
+    # The HTTP status is already 200 once streaming starts, so failures travel as an `error` event.
+    stream = None
+    try:
+        stream = service.generate_stream(body, metrics=metrics)
+        async for token in iterate_in_threadpool(stream):
+            if await request.is_disconnected():
+                break
+            yield ServerSentEvent(data=token, event="token")
+        else:
+            yield ServerSentEvent(
+                data={
+                    "model": metrics.model,
+                    "provider": service.provider_name,
+                    "input_tokens": metrics.input_tokens,
+                    "output_tokens": metrics.output_tokens,
+                    "latency_seconds": metrics.latency_seconds,
+                    "prompt_version": PROMPT_VERSION,
+                },
+                event="done",
+            )
+    except EstimationError as exc:
+        yield ServerSentEvent(data={"detail": str(exc)}, event="error")
+    except Exception:
+        logger.exception("estimate_stream_failed")
+        yield ServerSentEvent(data={"detail": _UNEXPECTED_STREAM_ERROR}, event="error")
+    finally:
+        # iterate_in_threadpool does not close the sync generator on early exit (disconnect).
+        if stream is not None:
+            stream.close()

@@ -1,21 +1,68 @@
-from fastapi import FastAPI
+from pathlib import Path
+from uuid import uuid4
 
+import structlog
+from fastapi import FastAPI, Request, Response
+from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
+from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
+
+from app.exceptions import LLMProviderError, PromptTemplateError
+from app.logging_config import configure_logging
 from app.routers import estimations
+
+configure_logging()
 
 app = FastAPI(
     title="Estimador CAG",
     description=(
-        "API de estimación de proyectos de software con CAG "
-        "(Cache-Augmented Generation). Recibe la transcripción de una reunión "
-        "con el cliente y genera una estimación de esfuerzo usando ejemplos "
-        "históricos inyectados en el prompt."
+        "Software project effort estimation with CAG (Cache-Augmented Generation). "
+        "Takes a project description plus type, detail level, output format and response "
+        "language, and returns a Markdown estimate guided by curated examples injected "
+        "into the system prompt."
     ),
     version="0.1.0",
 )
 
+
+class RequestContextMiddleware(BaseHTTPMiddleware):
+    async def dispatch(
+        self,
+        request: Request,
+        call_next: RequestResponseEndpoint,
+    ) -> Response:
+        structlog.contextvars.clear_contextvars()
+        structlog.contextvars.bind_contextvars(
+            request_id=str(uuid4()),
+            endpoint=request.url.path,
+        )
+        try:
+            return await call_next(request)
+        finally:
+            structlog.contextvars.clear_contextvars()
+
+
+app.add_middleware(RequestContextMiddleware)
 app.include_router(estimations.router, prefix="/api/v1")
+
+
+# Domain error → HTTP status. Messages are client-safe; provider details stay in the logs.
+@app.exception_handler(PromptTemplateError)
+async def _prompt_template_error(_: Request, exc: PromptTemplateError) -> JSONResponse:
+    return JSONResponse(status_code=500, content={"detail": str(exc)})
+
+
+@app.exception_handler(LLMProviderError)
+async def _llm_provider_error(_: Request, exc: LLMProviderError) -> JSONResponse:
+    return JSONResponse(status_code=502, content={"detail": str(exc)})
 
 
 @app.get("/health")
 def health() -> dict[str, str]:
     return {"status": "ok"}
+
+
+# Built React UI (web/dist). Mounted last so /api, /health and /docs keep priority.
+_WEB_DIST = Path(__file__).resolve().parent.parent / "web" / "dist"
+if _WEB_DIST.is_dir():
+    app.mount("/", StaticFiles(directory=_WEB_DIST, html=True), name="web")

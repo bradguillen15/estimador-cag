@@ -16,3 +16,18 @@ wheels/
 .idea/
 .vscode/
 .DS_Store
+
+# Test coverage
+.coverage
+htmlcov/
+
+# JS dependencies (pnpm workspace). npm/yarn lockfiles must never be committed.
+node_modules/
+package-lock.json
+yarn.lock
+
+# archify receipts (only candidate.json + the rendered HTML are versioned)
+docs/architecture/**/*.finalize.json
+docs/architecture/**/*.finalize-summary.json
+docs/architecture/**/*.browser-check.json
+docs/architecture/**/*.delivery.json

@@ -7,15 +7,19 @@ Read this before writing code. It defines *where* things go, *why*, and *what "d
 
 ## 1. What this app is
 
-A FastAPI service that turns a **client meeting transcript** into a **software effort estimation**,
-using **CAG (Cache-Augmented Generation)**: curated historical examples are injected into the system
-prompt instead of being retrieved at query time.
+A FastAPI service that turns a **project description** (e.g. notes from a client meeting) into a
+**software effort estimation**, using **CAG (Cache-Augmented Generation)**: curated historical
+examples are injected into the system prompt instead of being retrieved at query time.
 
-Single flow today:
+Single flow today (`/estimate` returns the full answer, `/estimate/stream` the same answer over SSE):
 
 ```
-POST /api/v1/estimate  →  router  →  LLMService  →  OpenAI  →  Markdown estimation
+POST /api/v1/estimate[/stream]  →  router  →  EstimationService  →  LLMProvider (OpenAI)  →  Markdown estimation
 ```
+
+The interactive diagram of this flow, with file/line sources per node, lives in
+[`docs/architecture/estimation-flow/estimation-flow.html`](docs/architecture/estimation-flow/estimation-flow.html)
+(see §5.5 to regenerate it).
 
 Everything in this document exists to keep that flow easy to extend (more providers, more endpoints,
 more context sources) **without rewriting it**.
@@ -29,13 +33,22 @@ more context sources) **without rewriting it**.
 | Python | 3.13 (`.python-version`) |
 | Package manager | `uv` (lockfile: `uv.lock`) |
 | Web | FastAPI + Uvicorn |
+| Frontend | React 19 + TypeScript + Tailwind v4 on Vite 6 (`web/`) |
+| Node | **24 LTS**, pinned in `.nvmrc` (CI reads the same file) |
+| JS package manager | **pnpm 10** workspace (root + `web/`, one `pnpm-lock.yaml`). npm/yarn are blocked. |
 | Config | pydantic-settings |
 | LLM SDK | `openai` |
 
 ```bash
 uv sync                                    # install deps
 cp .env.example .env                       # then fill the keys
-uv run uvicorn app.main:app --reload       # run (http://127.0.0.1:8000/docs)
+pnpm install                               # install UI deps (whole workspace)
+pnpm dev                                   # run API + UI together (Ctrl+C stops both)
+uv run uvicorn app.main:app --reload       # run API (http://127.0.0.1:8000/docs)
+pnpm dev:web                               # run UI only (http://localhost:5173, proxies /api → :8000)
+pnpm build                                 # build UI → web/dist, served by FastAPI at /
+pnpm lint                                  # ESLint (build also type-checks with tsc)
+pnpm --filter estimador-web add <pkg>      # add a UI dependency (never npm install)
 uv add <pkg>                               # add a dependency (never edit pyproject by hand)
 ```
 
@@ -50,12 +63,24 @@ in the same commit.
 
 ```
 app/
-├── main.py         # Composition root: app instance, router wiring, cross-cutting concerns
-├── config.py       # Settings (pydantic-settings). The ONLY place that reads env vars.
-├── routers/        # HTTP layer: parse, validate, delegate, map errors to status codes
-├── schemas/        # Pydantic request/response models
-├── services/       # Business logic. Knows nothing about HTTP.
-└── context/        # Static knowledge injected into prompts (the "C" in CAG)
+├── main.py              # Composition root: app, routers, middleware, exception handlers, logging boot
+├── config.py            # Settings (pydantic-settings). The ONLY place that reads env vars.
+├── dependencies.py      # FastAPI Depends providers (get_estimation_service) — overridable in tests
+├── exceptions.py        # Domain errors (EstimationError → PromptTemplateError / LLMProviderError)
+├── logging_config.py    # Structlog dual config (console / JSON) + cost helper
+├── prompts/             # Jinja2 templates + loader (estimation/<version>/)
+├── routers/             # HTTP layer: parse, validate, delegate, map errors to status codes
+├── schemas/             # Pydantic request/response models
+└── services/            # Business logic. Knows nothing about HTTP.
+    ├── estimation_service.py   # Use case: render prompts, delegate to the provider
+    └── llm/                    # base.py (Protocols) · openai.py (only SDK user) · factory.py
+
+tests/                   # pytest: prompts, schemas, provider (fake SDK client), service, routes
+
+web/src/                 # React UI — talks to the API over HTTP only, never imports Python
+├── api/                 # client.ts (fetch + SSE parser) and types.ts (mirror of app/schemas)
+├── components/          # Presentational pieces; no fetch calls here
+└── hooks/               # useEstimation (request lifecycle), useTheme (light/dark)
 ```
 
 ### 3.2 The dependency rule
@@ -68,7 +93,8 @@ main → routers → services → context / config
 
 - A **router** may import services and schemas. It must never build a prompt or call an SDK.
 - A **service** must never import `fastapi`, never raise `HTTPException`, never see a `Request`.
-- **context/** is data only. No logic, no I/O, no imports from `services` or `routers`.
+- **web/** reaches the backend only through `web/src/api/client.ts`. Components never call `fetch`.
+  `types.ts` mirrors `app/schemas/`: change both in the same commit.
 - **config.py** imports nothing from the app.
 
 If you catch yourself importing "upward", the abstraction is in the wrong layer — move it, don't
@@ -81,7 +107,7 @@ patch around it.
 | HTTP status codes | `routers/` | Only place that knows about 400/502/… |
 | Input shape validation | `schemas/` (Pydantic) | Declarative constraints, not `if` statements in the router |
 | Domain rules / errors | `services/` | Raise domain exceptions, let the router translate them |
-| Prompt text & assembly | `context/` + prompt builder | Never inline a prompt string in a router |
+| Prompt text & assembly | `prompts/` + `prompts/loader.py` | Never inline a prompt string in a router |
 | Provider SDK calls | `services/llm/<provider>.py` | One file per provider, one class per provider |
 | Env vars & secrets | `config.py` | `os.getenv` anywhere else is a bug |
 
@@ -96,7 +122,7 @@ Generic principle statements are useless. These are the concrete rules they tran
 `LLMService` currently does three jobs: build the prompt, hold provider config, and call the OpenAI
 SDK. Three reasons to change. Split as work lands:
 
-- **Prompt assembly** → `app/context/prompt_builder.py` (changes when prompt wording changes)
+- **Prompt assembly** → `app/prompts/loader.py` (changes when prompt wording changes)
 - **Provider call** → `app/services/llm/openai.py` (changes when the SDK changes)
 - **Use case orchestration** → `app/services/estimation_service.py` (changes when the business flow changes)
 
@@ -179,7 +205,7 @@ and services that receive their collaborators instead of reaching for globals.
 ### 4.6 DRY — one source of truth
 
 - Env var names: `config.py` only. Mirror every one in `.env.example`.
-- Prompt fragments (`_ROLE_AND_RULES`, `_OUTPUT_FORMAT`, examples): defined once in `context/`,
+- Prompt fragments (rules, output format, examples): defined once in `app/prompts/estimation/<version>/`,
   never duplicated per provider.
 - Response shapes: one Pydantic model per payload, reused — do not hand-build dicts.
 - Error→status mapping: one place (see §6.3), not repeated `try/except` blocks per endpoint.
@@ -211,6 +237,8 @@ already on the roadmap.
    domain errors to HTTP.
 4. Register the router in `main.py` if it is new. Keep the `/api/v1` prefix.
 5. Give the handler an explicit return type and `response_model`.
+6. If the UI consumes it: mirror the schema in `web/src/api/types.ts` and add one function to
+   `web/src/api/client.ts`. Components call hooks/client, never `fetch` directly.
 
 ### 5.2 Add an LLM provider
 
@@ -222,8 +250,15 @@ already on the roadmap.
 
 ### 5.3 Add / change prompt context (CAG)
 
-- Examples live in `app/context/examples.py` as data, matching the existing
-  `{"meeting_summary": ..., "estimation": ...}` shape.
+- Prompts live in `app/prompts/estimation/<version>/` (`system.j2`, `examples.j2`, `user.j2`).
+  Changing wording or examples in a way that alters output → new version folder + bump
+  `PROMPT_VERSION`.
+- `system.j2` = a **static prefix** (rules + examples, never request data) followed by two short
+  trailing blocks: `request.j2` (instructions for the chosen detail level / output format) and
+  `language.j2` (response language). Keeping every variable part at the end is what lets the
+  provider cache the prefix. The description itself only ever goes in `user.j2`.
+- Each example declares its parameters (type · detail · format); keep at least one example per
+  `output_format` so the few-shots never contradict the requested format.
 - Keep examples **consistent with the mandatory output format** in the prompt; if they diverge, fix
   the examples rather than adding compensating instructions.
 - Context grows the token bill on *every* request. Before adding an example, ask whether it teaches
@@ -234,6 +269,18 @@ already on the roadmap.
 
 `config.py` → `.env.example` → use it via injected `settings`. Give it a sensible default unless it
 is a secret; a missing optional var must not crash boot (see §7).
+
+### 5.5 Update the architecture diagram
+
+Diagrams in `docs/architecture/<name>/` are generated with the [archify](https://github.com/tt-a1i/archify)
+agent skill (installed per developer, not a project dependency). Only `candidate.json` (the editable
+source) and the rendered `<name>.html` are versioned; archify's `*.finalize*.json`,
+`*.browser-check.json` and `*.delivery.json` receipts are git-ignored.
+
+- When a change adds, removes or rewires a node shown in the diagram (router, service, provider,
+  prompt pipeline, error mapping), ask the agent to update `candidate.json` from the code and re-run
+  archify's `finalize` with `--repo-root .`, then commit both files with the change.
+- Every node cites its source files and lines; keep them pointing at real code, never at plans.
 
 ---
 
@@ -249,15 +296,25 @@ is a secret; a missing optional var must not crash boot (see §7).
 
 ### 6.2 Language
 
-Identifiers, type names and this document are **English**. Domain content — prompts, examples,
-user-facing messages and module docstrings — is **Spanish**, matching the product. Do not mix within
-a single string.
+Everything developers read is **English**: identifiers, comments, docstrings, docs (README, this
+file), commit messages, logs, CLI/script output, config errors, and the LLM prompts and few-shot
+examples (`app/prompts/`, from `v2`).
+
+**Spanish** is only for what the end user sees: UI copy in `web/src/` and error messages that reach
+the UI (e.g. `LLMProviderError` messages, the unexpected-stream error, the API-unreachable message).
+Tests may use Spanish sample input and assert on Spanish UI text. The model's *response* language
+is chosen per request by the prompt's closing "Response language" block (`language.j2`), not by
+the language the instructions are written in. `app/prompts/estimation/v1/` is the original Spanish
+prompt, kept only for comparison/rollback. Do not mix languages within a single string.
 
 ### 6.3 Errors
 
 - Services raise domain exceptions from `app/exceptions.py`
-  (`EmptyTranscriptError`, `LLMProviderError`, …). Never `HTTPException`.
-- Routers translate them. Current mapping: invalid input → **400**, upstream LLM failure → **502**.
+  (`PromptTemplateError`, `LLMProviderError`, both subclasses of `EstimationError`). Never
+  `HTTPException`.
+- Current mapping: invalid input is rejected by the Pydantic schema → **422** (FastAPI default);
+  `PromptTemplateError` → **500**; upstream LLM failure (`LLMProviderError`) → **502**. On
+  `/estimate/stream` the response has already started, so failures arrive as an SSE `error` event.
 - Prefer a single `@app.exception_handler` per domain exception in `main.py` over repeating
   `try/except` in every handler.
 - Never swallow an exception silently and never leak provider stack traces or API keys in a response
@@ -277,25 +334,40 @@ Fix these opportunistically when you touch the surrounding code; do not replicat
 | # | Issue | Location | Fix |
 |---|---|---|---|
 | 1 | Typos in setting names: `open_api_key`, `antropic_api_key` | `config.py`, `.env.example` | Rename to `openai_api_key` / `anthropic_api_key` (both files, same commit) |
-| 2 | All settings required → app crashes on boot with a partial `.env` | `config.py` | Defaults for `llm_provider`, `llm_model`, `app_env`, `log_level`; provider keys optional |
-| 3 | `provider` hardcoded to `"openai"`, ignoring `LLM_PROVIDER` | `services/llm_service.py` | Provider factory (§4.2) |
-| 4 | Service instantiated at import time in the router | `routers/estimations.py` | FastAPI `Depends` (§4.5) |
+| 2 | All settings required → app crashes on boot with a partial `.env` | `config.py` | Defaults for non-secrets if desired; provider keys optional — intentionally left required for now |
 | 5 | `estimation` returned as an opaque Markdown blob | `routers/estimations.py` | Consider a structured response (tasks, total hours, weeks) when a consumer needs it — not before |
-| 6 | No tests, no linter, no logging | repo-wide | §8 |
+| 6 | No Python linter/formatter yet | repo-wide | Add `ruff` when style drift shows up (§8) |
 
 ---
 
 ## 8. Testing and quality
 
-Not yet set up. When adding the first test, use `pytest` + `httpx`/`TestClient`:
-
 ```bash
-uv add --dev pytest pytest-asyncio httpx ruff
-uv run pytest
-uv run ruff check . && uv run ruff format .
+pnpm test                # both suites from the repo root (API first, then UI)
+pnpm test:api            # uv run pytest  (tests/)
+pnpm test:web            # vitest run     (web/src/**/*.test.ts[x])
+pnpm test:watch          # vitest in watch mode (UI)
+pnpm test:coverage       # pytest --cov=app + vitest --coverage
 ```
 
-Rules once it exists:
+- API: `pytest` + `TestClient`. `tests/conftest.py` pins fake settings and **fails any test that
+  reaches the real OpenAI SDK**; use `FakeProvider` / the fake SDK client instead.
+- UI: Vitest + React Testing Library + jsdom. Mock `web/src/api/client.ts` at the module boundary;
+  query by role/label, not by class names.
+
+CI (`.github/workflows/ci.yml`) runs both suites on every PR to `main`. `main` is protected: changes land
+only through a PR whose `api-tests` and `web-tests` checks pass (admins included). Those job names are
+required status checks — renaming them blocks every merge until branch protection is updated.
+CodeRabbit reviews PRs using `.coderabbit.yaml`, which points reviewers at the rules in this file.
+While the repo has fewer than 10 stars CodeRabbit does **not** auto-review: request it on each PR
+with `@coderabbitai review` (or `@coderabbitai full review`). It is advisory, not a required check.
+
+Pre-commit (Husky + lint-staged, installed by `pnpm install` via `prepare`) runs **the same checks as
+CI**: both call `scripts/ci/api.sh` and `scripts/ci/web.sh`, against the staged snapshot only. To
+change what is checked, edit those scripts, never the workflow or the hook separately. Don't bypass
+the hook with `--no-verify` to land failing code.
+
+Rules:
 
 - Test **services** directly with a fake `LLMProvider` — never hit a real API in a test.
 - Test **routers** through `TestClient` with `app.dependency_overrides` swapping the service.
@@ -315,4 +387,5 @@ Before finishing any change:
 - [ ] New settings added to `config.py` **and** `.env.example`; no secret committed
 - [ ] Errors mapped to the right status codes; nothing swallowed
 - [ ] `uv run uvicorn app.main:app --reload` boots and `/health` returns `{"status": "ok"}`
+- [ ] If `web/` changed: `pnpm build` and `pnpm lint` pass
 - [ ] `README.md` / `AGENTS.md` updated if structure or workflow changed
