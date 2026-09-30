@@ -3,6 +3,7 @@
 from functools import lru_cache
 from typing import Annotated
 
+import structlog
 from fastapi import Depends, Query
 
 from app.config import settings
@@ -13,20 +14,38 @@ from app.services.cache.factory import get_response_cache
 from app.services.cache.semantic import NoOpSemanticCache, SemanticCache, build_semantic_cache
 from app.services.estimation_service import EstimationService
 from app.services.guardrails.input import InputGuardrails
+from app.services.llm.base import ModerationProvider
 from app.services.llm.factory import get_embedder, get_llm_provider, get_moderator
+
+logger = structlog.get_logger()
 
 
 def _get_semantic_cache() -> SemanticCache:
     if not settings.semantic_cache_enabled:
         return NoOpSemanticCache()
-    return build_semantic_cache(settings, get_embedder(settings), settings.llm_models)
+    try:
+        embedder = get_embedder(settings)
+    except ValueError:
+        # Optional feature: a bad embedding config degrades to "no semantic cache", not a 500 per request.
+        logger.warning("semantic_cache_disabled", reason="config_error")
+        return NoOpSemanticCache()
+    return build_semantic_cache(settings, embedder, settings.llm_models)
+
+
+def _get_moderator() -> ModerationProvider | None:
+    try:
+        return get_moderator(settings)
+    except ValueError:
+        # Optional feature: a missing key degrades to "no moderation", not a 500 per request.
+        logger.warning("moderation_disabled", reason="config_error")
+        return None
 
 
 @lru_cache
 def get_estimation_service() -> EstimationService:
     return EstimationService(
         provider=get_llm_provider(settings),
-        guardrails=InputGuardrails(moderator=get_moderator(settings)),
+        guardrails=InputGuardrails(moderator=_get_moderator()),
         cache=get_response_cache(settings),
         semantic_cache=_get_semantic_cache(),
         cache_models=tuple(settings.llm_models),
