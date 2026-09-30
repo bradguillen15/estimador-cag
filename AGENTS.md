@@ -14,7 +14,7 @@ examples are injected into the system prompt instead of being retrieved at query
 Single flow today (`/estimate` returns the full answer, `/estimate/stream` the same answer over SSE):
 
 ```
-POST /api/v1/estimate[/stream]  →  router  →  EstimationService  →  LLMProvider (LiteLLM)  →  Markdown estimation
+POST /api/v1/estimate[/stream]  →  router (get_safe_request: input guardrails)  →  EstimationService  →  exact cache → semantic cache → LLMProvider (LiteLLM)  →  output check  →  Markdown estimation
 ```
 
 The interactive diagram of this flow, with file/line sources per node, is
@@ -73,7 +73,9 @@ app/
 ├── schemas/             # Pydantic request/response models
 └── services/            # Business logic. Knows nothing about HTTP.
     ├── estimation_service.py   # Use case: render prompts, delegate to the provider
-    └── llm/                    # base.py (Protocols) · litellm.py (the only user of the LLM SDK) · factory.py (builds it from LLM_MODELS)
+    ├── guardrails/             # input.py (injection reject, PII redaction, moderation hook) · output.py (answer structure check)
+    ├── cache/                  # base.py (ResponseCache Protocol, key) · redis_cache.py (exact) · semantic.py (redisvl) · factory.py
+    └── llm/                    # base.py (Protocols) · litellm.py / moderation.py / embeddings.py (the only users of the LLM SDK) · factory.py
 
 tests/                   # pytest: prompts, schemas, provider (patched litellm.completion), service, routes
 
@@ -108,7 +110,9 @@ patch around it.
 | Input shape validation | `schemas/` (Pydantic) | Declarative constraints, not `if` statements in the router |
 | Domain rules / errors | `services/` | Raise domain exceptions, let the router translate them |
 | Prompt text & assembly | `prompts/` + `prompts/loader.py` | Never inline a prompt string in a router |
-| Provider SDK calls | `services/llm/litellm.py` | Only module that imports `litellm`; a non-LiteLLM backend would get its own file |
+| Provider SDK calls | `services/llm/` | `litellm` is imported only under `app/services/llm/` (completion, moderation, embeddings); a non-LiteLLM backend would get its own file there |
+| Cache backends | `services/cache/` | `redis` / `redisvl` are imported only under `app/services/cache/`; callers see the `ResponseCache` / `SemanticCache` Protocols |
+| Input guardrails | `services/guardrails/input.py` | Run in the `get_safe_request` dependency (see §5.1), never inside a streaming handler |
 | Env vars & secrets | `config.py` | `os.getenv` anywhere else is a bug |
 
 ---
@@ -237,6 +241,9 @@ justified because the fallback chain in `LLM_MODELS` and a test `FakeProvider` a
    domain errors to HTTP.
 4. Register the router in `main.py` if it is new. Keep the `/api/v1` prefix.
 5. Give the handler an explicit return type and `response_model`.
+   Estimation handlers take the request through `Depends(get_safe_request)` so the input guardrails
+   run **before any streaming response starts**: a rejection must be an HTTP 400, never an SSE `error`
+   event (the SSE handler body only runs after the response has begun).
 6. If the UI consumes it: mirror the schema in `web/src/api/types.ts` and add one function to
    `web/src/api/client.ts`. Components call hooks/client, never `fetch` directly.
 
@@ -258,6 +265,9 @@ Only if a backend LiteLLM cannot reach is ever needed: add a class implementing
 - Prompts live in `app/prompts/estimation/<version>/` (`system.j2`, `examples.j2`, `user.j2`).
   Changing wording or examples in a way that alters output → new version folder + bump
   `PROMPT_VERSION`.
+- The active version is `v3` (adds the confidence line, items-then-sum rule, discovery/deployment and
+  no-invented-dates rules). The output check (`services/guardrails/output.py`) mirrors the closing-block
+  labels of `language.j2`: change them together (a test keeps them in sync).
 - `system.j2` = a **static prefix** (rules + examples, never request data) followed by two short
   trailing blocks: `request.j2` (instructions for the chosen detail level / output format) and
   `language.j2` (response language). Keeping every variable part at the end is what lets the
@@ -303,7 +313,7 @@ source) and the rendered `<name>.html` are versioned; archify's `*.finalize*.jso
 
 Everything developers read is **English**: identifiers, comments, docstrings, docs (README, this
 file), commit messages, logs, CLI/script output, config errors, and the LLM prompts and few-shot
-examples (`app/prompts/`, from `v2`).
+examples (`app/prompts/`, from `v2`; active: `v3`).
 
 **Spanish** is only for what the end user sees: UI copy in `web/src/` and error messages that reach
 the UI (e.g. `LLMProviderError` messages, the unexpected-stream error, the API-unreachable message).
@@ -318,6 +328,7 @@ prompt, kept only for comparison/rollback. Do not mix languages within a single 
   (`PromptTemplateError`, `LLMProviderError`, both subclasses of `EstimationError`). Never
   `HTTPException`.
 - Current mapping: invalid input is rejected by the Pydantic schema → **422** (FastAPI default);
+  `InputRejectedError` (prompt injection, moderation) → **400**;
   `PromptTemplateError` → **500**; upstream LLM failure (`LLMProviderError`) → **502**. On
   `/estimate/stream` the response has already started, so failures arrive as an SSE `error` event.
 - Prefer a single `@app.exception_handler` per domain exception in `main.py` over repeating
@@ -341,6 +352,7 @@ Fix these opportunistically when you touch the surrounding code; do not replicat
 | 2 | All settings required → app crashes on boot with a partial `.env` | `config.py` | Provider keys are now optional (the factory checks the ones in use); defaults for the remaining non-secrets if desired |
 | 5 | `estimation` returned as an opaque Markdown blob | `routers/estimations.py` | Consider a structured response (tasks, total hours, weeks) when a consumer needs it — not before |
 | 6 | No Python linter/formatter yet | repo-wide | Add `ruff` when style drift shows up (§8) |
+| 7 | Semantic cache is unverified against a real Redis Stack, and a setup failure is permanent for the process (no retry; restart to recover) | `services/cache/semantic.py` | Run an integration check against `redis/redis-stack` (index creation, bucket filter, TTL) before moving `SEMANTIC_CACHE_LOG_ONLY` to `false` |
 
 ---
 
@@ -374,6 +386,8 @@ the hook with `--no-verify` to land failing code.
 Rules:
 
 - Test **services** directly with a fake `LLMProvider` — never hit a real API in a test.
+- Redis, moderation and embeddings are always faked (`FakeCache`, fake index/embedder, patched
+  `litellm.moderation` / `embedding`, which `conftest.py` blocks); no Redis in tests or CI.
 - Test **routers** through `TestClient` with `app.dependency_overrides` swapping the service.
 - Every bug fix gets a regression test.
 - Never assert on exact LLM output; assert on contract (status code, schema, error mapping).

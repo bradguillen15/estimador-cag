@@ -82,3 +82,4 @@ T7 diagram by the parent with the archify skill.
 - 2026-09-30: T6 done (description max 20000 in schema + web mirror + tests). Commit f015f04 feat(api): raise the description limit... Final verification: boot + /health ok; stream injection -> HTTP 400.
 - 2026-09-30: verification fixes (A): injection patterns anchored on addressing the assistant, NFKC + zero-width stripping before the injection match, phone redaction requires a phone-like shape; regression tests added.
 - 2026-09-30: verification fixes (B): semantic bucket includes a hash of the LLM model list; setup failure documented as permanent per process (restart to recover).
+- 2026-09-30: verification fixes (C): README and AGENTS.md updated (settings, guardrails, cache, v3, layer map, rules, known debt #7). Diagram and `.env.example` left to the parent.

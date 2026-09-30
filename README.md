@@ -11,7 +11,7 @@ Markdown estimate (assumptions, task breakdown, total hours, team and duration).
 - **API:** FastAPI + LiteLLM (Anthropic primary, OpenAI fallback) (`app/`), JSON and SSE streaming endpoints.
 - **UI:** React 19 + TypeScript + Tailwind v4 on Vite (`web/`). Dark by default, light/dark
   toggle, language toggle (Español / English) for both the UI copy and the model response.
-- **Prompts:** versioned Jinja2 templates in English (`app/prompts/estimation/v2/`); the model
+- **Prompts:** versioned Jinja2 templates in English (`app/prompts/estimation/v3/`); the model
   answers in the language selected in the sidebar.
 
 ## Requirements
@@ -43,6 +43,40 @@ missing key fails at startup. The Anthropic system message is marked for prompt 
 `LLM_TIMEOUT` (seconds, default 30), `LLM_RETRIES` (per model, default 2) and `LLM_MAX_TOKENS`
 (default 16000) apply to every model in the list where supported. Logs include `served_model` and
 `fallback_used`.
+
+## Guardrails and caching
+
+Everything below is configured in `.env` (see `.env.example`).
+
+**Input guardrails** run on the description before any cache lookup or LLM call, for both
+`/estimate` and `/estimate/stream` (in the stream, a rejection is a plain HTTP 400, never an `error`
+event):
+
+- Prompt-injection heuristics (English and Spanish) reject the request with **400** and a Spanish
+  message. Best effort: obfuscation such as leetspeak is not covered.
+- PII (emails, phone numbers, IBANs) is **redacted** with `[EMAIL]`, `[PHONE]`, `[IBAN]` before the
+  text reaches the provider; the request is not rejected.
+- `MODERATION_ENABLED` (default `false`): OpenAI moderation through LiteLLM (needs
+  `OPENAI_API_KEY`). Flagged input returns **400**; a moderation outage only logs a warning.
+
+**Output check:** after a completed answer, the API verifies the Markdown contains the localized
+total line or the insufficient-information heading. A failure logs `output_check_failed` and the
+answer is not cached; the text is never rewritten.
+
+**Exact cache** (Redis): `CACHE_ENABLED` (default `false`), `REDIS_URL`, `CACHE_TTL` (seconds).
+The key covers the prompt version, the model list, the sanitized description and all request
+options, including the response language. A hit skips the LLM; `/estimate/stream` replays it as
+`token` events and its `done` event has `cache_hit: true`. Only completed answers that pass the
+output check are stored. If Redis is unreachable the request still succeeds (warning log, no cache).
+
+**Semantic cache** (opt-in): `SEMANTIC_CACHE_ENABLED` (default `false`) reuses the answer of a
+near-duplicate description in the same bucket (prompt version, type, detail, format, language and
+model list) when the embedding similarity is at least `SEMANTIC_CACHE_THRESHOLD` (0.92). With
+`SEMANTIC_CACHE_LOG_ONLY=true` (default) it only logs would-be hits, to calibrate the threshold.
+Also `SEMANTIC_CACHE_TTL`, `EMBEDDING_MODEL` (default `openai/text-embedding-3-small`) and
+`EMBEDDING_DIMS` (1536). It needs **Redis Stack** (RediSearch), e.g. `docker run -p 6379:6379
+redis/redis-stack-server`; plain Redis works for the exact cache only. If its setup fails, the
+semantic cache stays off until the app is restarted.
 
 ## Run
 
@@ -76,8 +110,8 @@ pnpm test:coverage   # coverage for both
 pnpm lint            # ESLint (pnpm build also type-checks)
 ```
 
-Tests never call the real LLM: the API tests use a fake provider (and fail if anything reaches
-`litellm.completion`), and the UI tests mock `web/src/api/client.ts`. The prompt template tests in
+Tests never call the real LLM, Redis, moderation or embeddings: the API tests use fakes (and fail if
+anything reaches `litellm.completion`, `moderation` or `embedding`), and the UI tests mock `web/src/api/client.ts`. The prompt template tests in
 `tests/prompts/` render the templates only and run in milliseconds.
 
 ### Pre-commit hook
@@ -118,7 +152,7 @@ Small open-source repos are limited to about one CodeRabbit review per hour.
 |--------|------|----------|
 | `GET` | `/health` | `{"status": "ok"}` |
 | `POST` | `/api/v1/estimate` | `EstimationResponse` (`text`, `prompt_version`) |
-| `POST` | `/api/v1/estimate/stream` | SSE events: `token`, `done` (model, tokens, latency, `prompt_version`), `error` |
+| `POST` | `/api/v1/estimate/stream` | SSE events: `token`, `done` (model, tokens, latency, `cache_hit`, `prompt_version`), `error` |
 | `GET` | `/api/v1/context` | `PromptContextResponse` (`prompt_version`, `examples_markdown`) |
 
 ```bash
@@ -136,19 +170,22 @@ curl -X POST http://127.0.0.1:8000/api/v1/estimate \
 - `project_type`: `mobile_app` | `web_saas` | `internal_tool` | `data_pipeline`
 - `detail_level`: `summary` | `medium` | `detailed`
 - `output_format`: `phases_table` | `line_items` | `narrative`
+- `description`: 20 to 20000 characters.
 - `language` (optional): `es` (default) | `en`. Unsupported values fall back to `es`.
 
 Provider failures return **502** with a safe message, prompt misconfiguration **500**, invalid
-input **422**. In the stream, failures arrive as an `error` event.
+input **422**, input rejected by a guardrail **400**. In the stream, failures arrive as an `error` event.
 
 ## Prompts
 
 `app/prompts/estimation/<version>/` holds the templates; `PROMPT_VERSION` in
-`app/prompts/loader.py` selects the active one (`v2`; `v1` is the original Spanish prompt, kept
-for comparison). The system prompt is a static prefix (rules + few-shot examples, identical for
+`app/prompts/loader.py` selects the active one (`v3`; `v1` is the original Spanish prompt and `v2` the
+previous one, kept for comparison). The system prompt is a static prefix (rules + few-shot examples, identical for
 every request, so the provider can cache it) followed by two short blocks: `request.j2` (the
 chosen detail level and output format) and `language.j2` (the response language). The project
-description only goes in `user.j2`.
+description only goes in `user.j2`. `v3` adds a confidence line to the closing block, an
+items-first-then-sum rule, discovery and deployment work, and a rule against inventing dates or
+stakeholders.
 
 ## Project structure
 
@@ -162,7 +199,7 @@ app/
 ├── prompts/              # Versioned Jinja2 templates + loader
 ├── routers/              # HTTP / SSE endpoints
 ├── schemas/              # Pydantic request/response models
-└── services/             # EstimationService + LLM providers (services/llm/)
+└── services/             # EstimationService; llm/ (LiteLLM), guardrails/ (input, output), cache/ (Redis)
 tests/                    # pytest (API + prompt templates)
 web/src/
 ├── api/                  # HTTP/SSE client + types (mirror of app/schemas)
