@@ -46,7 +46,7 @@ export type StreamEvent =
   | { type: 'error'; detail: string }
 
 export const DESCRIPTION_MIN = 20
-export const DESCRIPTION_MAX = 2000
+export const DESCRIPTION_MAX = 20000
 
 export const DEFAULT_RESPONSE_LANGUAGE: ResponseLanguage = 'es'
 

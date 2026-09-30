@@ -32,7 +32,7 @@ class ResponseLanguage(str, Enum):
 
 
 class EstimationRequest(BaseModel):
-    description: str = Field(min_length=20, max_length=2000)
+    description: str = Field(min_length=20, max_length=20000)
     project_type: ProjectType
     detail_level: DetailLevel
     output_format: OutputFormat
