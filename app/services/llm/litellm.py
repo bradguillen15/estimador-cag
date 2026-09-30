@@ -40,6 +40,20 @@ def _to_provider_error(exc: Exception) -> LLMProviderError:
     return LLMProviderError("El proveedor LLM devolvió un error al generar la estimación.")
 
 
+def _close_stream(response: Any) -> None:
+    """Best-effort synchronous close of the provider's HTTP stream; never raises.
+
+    LiteLLM's ``CustomStreamWrapper`` only offers ``async aclose()``, which a sync generator cannot
+    await, so the underlying ``completion_stream`` is closed directly when it supports it.
+    """
+    try:
+        close = getattr(getattr(response, "completion_stream", None), "close", None)
+        if callable(close):
+            close()
+    except Exception as exc:
+        logger.debug("llm_stream_close_failed", error_type=type(exc).__name__)
+
+
 def _messages(system_prompt: str, user_prompt: str) -> list[dict[str, str]]:
     return [
         {"role": "system", "content": system_prompt},
@@ -154,13 +168,14 @@ class LiteLLMProvider:
         started_at = perf_counter()
         last_error: Exception | None = None
         chunks: Iterator[Any] | None = None
+        raw_stream: Any = None
         served_model = self.model
         attempts = 0
 
         # Fallback only applies until the first text chunk: after that the client already has text.
         for attempts, served_model in enumerate(self._models, start=1):
             try:
-                chunks = self._open_stream(served_model, system_prompt, user_prompt)
+                raw_stream, chunks = self._open_stream(served_model, system_prompt, user_prompt)
                 break
             except Exception as exc:
                 last_error = exc
@@ -201,6 +216,9 @@ class LiteLLMProvider:
         except Exception as exc:
             self._fail(call_logger, exc, started_at)
             return
+        finally:
+            # Runs on completion, mid-stream errors and GeneratorExit (client disconnected).
+            _close_stream(raw_stream)
 
         latency_ms = round((perf_counter() - started_at) * 1000, 1)
         cost = _cost_usd(served_model, tokens_in, tokens_out, cached)
@@ -220,23 +238,32 @@ class LiteLLMProvider:
             fallback_used=attempts > 1,
         )
 
-    def _open_stream(self, model: str, system_prompt: str, user_prompt: str) -> Iterator[Any]:
-        """Opens the stream and reads until the first text chunk, so failures here can fall back."""
-        response = iter(
-            self._call(
-                model,
-                system_prompt,
-                user_prompt,
-                stream=True,
-                stream_options={"include_usage": True},
-            )
+    def _open_stream(
+        self, model: str, system_prompt: str, user_prompt: str
+    ) -> tuple[Any, Iterator[Any]]:
+        """Opens the stream and reads until the first text chunk, so failures here can fall back.
+
+        Returns the raw provider stream (for closing) and the chunk iterator. On failure the raw
+        stream is closed here, so an abandoned attempt never leaks its connection.
+        """
+        raw = self._call(
+            model,
+            system_prompt,
+            user_prompt,
+            stream=True,
+            stream_options={"include_usage": True},
         )
-        head: list[Any] = []
-        for chunk in response:
-            head.append(chunk)
-            if chunk.choices and chunk.choices[0].delta.content:
-                return chain(head, response)
-        raise LLMProviderError("El proveedor LLM devolvió una respuesta vacía.")
+        try:
+            response = iter(raw)
+            head: list[Any] = []
+            for chunk in response:
+                head.append(chunk)
+                if chunk.choices and chunk.choices[0].delta.content:
+                    return raw, chain(head, response)
+            raise LLMProviderError("El proveedor LLM devolvió una respuesta vacía.")
+        except BaseException:
+            _close_stream(raw)
+            raise
 
     def _fail(self, call_logger: Any, exc: Exception | None, started_at: float) -> Any:
         """Logs the terminal failure and raises the safe domain error."""

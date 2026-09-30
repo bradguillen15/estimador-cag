@@ -228,6 +228,66 @@ def test_stream_with_no_text_is_an_empty_answer_error() -> None:
         list(_provider(fake, models=["anthropic/claude-sonnet-5-5"]).stream("S", "U"))
 
 
+class FakeStream:
+    """Iterable like LiteLLM's ``CustomStreamWrapper``: the HTTP stream is ``completion_stream``."""
+
+    def __init__(self, items: list[Any] | None = None, error: Exception | None = None) -> None:
+        self._items = list(items or [])
+        self._error = error
+        self.closed = 0
+        self.completion_stream = SimpleNamespace(close=self._close)
+
+    def _close(self) -> None:
+        self.closed += 1
+
+    def __iter__(self) -> Iterator[Any]:
+        yield from self._items
+        if self._error is not None:
+            raise self._error
+
+
+def test_stream_closes_the_provider_stream_on_normal_completion() -> None:
+    stream = FakeStream([_chunk("hola"), _chunk(usage=(1, 1, 0))])
+    assert list(_provider(FakeCompletion(stream)).stream("S", "U")) == ["hola"]
+    assert stream.closed == 1
+
+
+def test_stream_closes_the_provider_stream_when_the_consumer_stops_early() -> None:
+    stream = FakeStream([_chunk("uno"), _chunk("dos"), _chunk("tres")])
+    generator = _provider(FakeCompletion(stream)).stream("S", "U")
+    assert next(generator) == "uno"
+    assert stream.closed == 0
+    generator.close()  # what happens when the client disconnects
+    assert stream.closed == 1
+
+
+def test_stream_closes_the_provider_stream_on_a_mid_stream_error() -> None:
+    stream = FakeStream([_chunk("parcial")], error=_timeout())
+    with pytest.raises(LLMProviderError):
+        list(_provider(FakeCompletion(stream)).stream("S", "U"))
+    assert stream.closed == 1
+
+
+def test_stream_closes_the_provider_stream_on_an_empty_response() -> None:
+    stream = FakeStream([_chunk(usage=(1, 0, 0))])
+    with pytest.raises(LLMProviderError, match="vacía"):
+        list(_provider(FakeCompletion(stream), models=["anthropic/claude-sonnet-5-5"]).stream("S", "U"))
+    assert stream.closed == 1
+
+
+def test_stream_closes_the_abandoned_stream_before_falling_back() -> None:
+    abandoned = FakeStream(error=_timeout())
+    fallback = FakeStream([_chunk("respaldo")])
+    assert list(_provider(FakeCompletion(abandoned, fallback)).stream("S", "U")) == ["respaldo"]
+    assert (abandoned.closed, fallback.closed) == (1, 1)
+
+
+def test_a_failing_close_never_breaks_the_stream() -> None:
+    stream = FakeStream([_chunk("hola")])
+    stream.completion_stream = SimpleNamespace(close=lambda: (_ for _ in ()).throw(RuntimeError("boom")))
+    assert list(_provider(FakeCompletion(stream)).stream("S", "U")) == ["hola"]
+
+
 # --- factory ----------------------------------------------------------------------------------
 
 
