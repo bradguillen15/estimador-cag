@@ -57,7 +57,7 @@ Structured JSON output (Instructor) — our contract stays Markdown over SSE. No
 - [x] T5 — Semantic cache (redisvl, log_only default, LiteLLM embeddings) + settings + tests.
       Commit `feat(cache): ...`
 - [x] T6 — Description limit 20000 (schema + web mirror + tests). Commit `feat(api): ...`
-- [ ] T7 — Docs: README, AGENTS.md (layer map, litellm rule, recipes), `.env.example`, architecture
+- [x] T7 — (README/AGENTS 67c7e79, diagram 9a76f1d, `.env.example` added by the user) Docs: README, AGENTS.md (layer map, litellm rule, recipes), `.env.example`, architecture
       diagram. Commit `docs: ...`
 
 Route: one delegated writer for T1–T6 (trigger: 2+ non-trivial files per task, 4+ files to map);
@@ -83,3 +83,5 @@ T7 diagram by the parent with the archify skill.
 - 2026-09-30: verification fixes (A): injection patterns anchored on addressing the assistant, NFKC + zero-width stripping before the injection match, phone redaction requires a phone-like shape; regression tests added.
 - 2026-09-30: verification fixes (B): semantic bucket includes a hash of the LLM model list; setup failure documented as permanent per process (restart to recover).
 - 2026-09-30: verification fixes (C): README and AGENTS.md updated (settings, guardrails, cache, v3, layer map, rules, known debt #7). Diagram and `.env.example` left to the parent.
+- 2026-09-30: diagram 9a76f1d (archify finalize: validate/deliver/check/browser-check passed; visual review not done, advisory 3-bend routes guard→mod, semantic→embedder). T7 open only for `.env.example` (agent writes denied; user applies).
+- 2026-09-30: T7 closed — `.env.example` lines added by the user, committed with this document.
