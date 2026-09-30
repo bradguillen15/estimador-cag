@@ -17,6 +17,8 @@ class GenerationMetrics:
     input_tokens: int | None = None
     output_tokens: int | None = None
     latency_seconds: float | None = None
+    cached_tokens: int | None = None
+    cost_usd: float | None = None
 
 
 class LLMProvider(Protocol):

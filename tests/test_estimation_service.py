@@ -2,14 +2,11 @@
 
 import pytest
 
-from app.config import Settings
 from app.exceptions import LLMProviderError
 from app.prompts.loader import render_estimation_examples, render_estimation_prompt
 from app.schemas.estimations import EstimationRequest
 from app.services.estimation_service import PROMPT_VERSION, EstimationService
 from app.services.llm.base import GenerationMetrics
-from app.services.llm.factory import get_llm_provider
-from app.services.llm.openai import OpenAIProvider
 from tests.conftest import VALID_REQUEST, FakeProvider
 
 REQUEST = EstimationRequest.model_validate(VALID_REQUEST)
@@ -44,28 +41,3 @@ def test_exposes_provider_identity_and_cag_examples() -> None:
     assert (service.provider_name, service.model) == ("fake", "fake-model")
     assert service.context_examples() == render_estimation_examples(PROMPT_VERSION)
 
-
-# --- provider factory -------------------------------------------------------------------------
-
-
-def _settings(provider: str) -> Settings:
-    return Settings(
-        open_api_key="k",
-        antropic_api_key="k",
-        llm_provider=provider,
-        llm_model="gpt-test",
-        app_env="development",
-        log_level="INFO",
-    )
-
-
-@pytest.mark.parametrize("name", ["openai", "OpenAI", " openai "])
-def test_factory_builds_the_configured_provider(name: str) -> None:
-    provider = get_llm_provider(_settings(name))
-    assert isinstance(provider, OpenAIProvider)
-    assert provider.model == "gpt-test"
-
-
-def test_factory_rejects_unknown_providers() -> None:
-    with pytest.raises(ValueError, match="Unsupported LLM_PROVIDER"):
-        get_llm_provider(_settings("llama-local"))

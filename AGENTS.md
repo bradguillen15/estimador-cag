@@ -14,7 +14,7 @@ examples are injected into the system prompt instead of being retrieved at query
 Single flow today (`/estimate` returns the full answer, `/estimate/stream` the same answer over SSE):
 
 ```
-POST /api/v1/estimate[/stream]  →  router  →  EstimationService  →  LLMProvider (OpenAI)  →  Markdown estimation
+POST /api/v1/estimate[/stream]  →  router  →  EstimationService  →  LLMProvider (LiteLLM)  →  Markdown estimation
 ```
 
 The interactive diagram of this flow, with file/line sources per node, is
@@ -37,7 +37,7 @@ more context sources) **without rewriting it**.
 | Node | **24 LTS**, pinned in `.nvmrc` (CI reads the same file) |
 | JS package manager | **pnpm 10** workspace (root + `web/`, one `pnpm-lock.yaml`). npm/yarn are blocked. |
 | Config | pydantic-settings |
-| LLM SDK | `openai` |
+| LLM SDK | `litellm` (Anthropic primary + OpenAI fallback, ordered by `LLM_MODELS`) |
 
 ```bash
 uv sync                                    # install deps
@@ -73,9 +73,9 @@ app/
 ├── schemas/             # Pydantic request/response models
 └── services/            # Business logic. Knows nothing about HTTP.
     ├── estimation_service.py   # Use case: render prompts, delegate to the provider
-    └── llm/                    # base.py (Protocols) · openai.py (only SDK user) · factory.py
+    └── llm/                    # base.py (Protocols) · litellm.py (the only user of the LLM SDK) · factory.py (builds it from LLM_MODELS)
 
-tests/                   # pytest: prompts, schemas, provider (fake SDK client), service, routes
+tests/                   # pytest: prompts, schemas, provider (patched litellm.completion), service, routes
 
 web/src/                 # React UI — talks to the API over HTTP only, never imports Python
 ├── api/                 # client.ts (fetch + SSE parser) and types.ts (mirror of app/schemas)
@@ -108,7 +108,7 @@ patch around it.
 | Input shape validation | `schemas/` (Pydantic) | Declarative constraints, not `if` statements in the router |
 | Domain rules / errors | `services/` | Raise domain exceptions, let the router translate them |
 | Prompt text & assembly | `prompts/` + `prompts/loader.py` | Never inline a prompt string in a router |
-| Provider SDK calls | `services/llm/<provider>.py` | One file per provider, one class per provider |
+| Provider SDK calls | `services/llm/litellm.py` | Only module that imports `litellm`; a non-LiteLLM backend would get its own file |
 | Env vars & secrets | `config.py` | `os.getenv` anywhere else is a bug |
 
 ---
@@ -119,27 +119,26 @@ Generic principle statements are useless. These are the concrete rules they tran
 
 ### 4.1 SRP — one reason to change per unit
 
-`LLMService` currently does three jobs: build the prompt, hold provider config, and call the OpenAI
+`LLMService` currently does three jobs: build the prompt, hold provider config, and call the LLM
 SDK. Three reasons to change. Split as work lands:
 
 - **Prompt assembly** → `app/prompts/loader.py` (changes when prompt wording changes)
-- **Provider call** → `app/services/llm/openai.py` (changes when the SDK changes)
+- **Provider call** → `app/services/llm/litellm.py` (changes when the SDK changes)
 - **Use case orchestration** → `app/services/estimation_service.py` (changes when the business flow changes)
 
 A router handler stays under ~15 lines. If it grows, the logic belongs in a service.
 
 ### 4.2 OCP — open for extension, closed for modification
 
-Adding a second LLM provider must not require editing the estimation logic.
+Adding another LLM vendor must not require editing the estimation logic.
 
-Target structure:
+Structure:
 
 ```
 app/services/llm/
-├── base.py       # LLMProvider Protocol  (the abstraction)
-├── openai.py     # OpenAIProvider
-├── anthropic.py  # AnthropicProvider
-└── factory.py    # get_llm_provider(settings) -> LLMProvider
+├── base.py       # LLMProvider / StreamingLLMProvider Protocols (the abstraction)
+├── litellm.py    # LiteLLMProvider (ordered model list with fallback; the only SDK user)
+└── factory.py    # get_llm_provider(settings) -> StreamingLLMProvider
 ```
 
 ```python
@@ -152,7 +151,9 @@ class LLMProvider(Protocol):
     def complete(self, system_prompt: str, user_prompt: str) -> str: ...
 ```
 
-New provider = new file + one entry in the factory map. Zero edits to the service or the router.
+LiteLLM already speaks to many vendors, so a new vendor = its `<prefix>` → API-key mapping in
+`factory.py` plus a key setting. Zero edits to the service or the router. Write a new provider
+class only if we ever need a backend LiteLLM cannot reach.
 
 ### 4.3 LSP — substitutability
 
@@ -222,8 +223,7 @@ reasons should stay separate.
 - Prefer a plain function over a class with one method; prefer a dict lookup over a class hierarchy.
 
 Apply the abstractions in §4.2 **when the second case appears**, not before. The Protocol above is
-justified because `LLM_PROVIDER` and `ANTROPIC_API_KEY` already exist in config — the second case is
-already on the roadmap.
+justified because the fallback chain in `LLM_MODELS` and a test `FakeProvider` already give two implementations.
 
 ---
 
@@ -240,13 +240,18 @@ already on the roadmap.
 6. If the UI consumes it: mirror the schema in `web/src/api/types.ts` and add one function to
    `web/src/api/client.ts`. Components call hooks/client, never `fetch` directly.
 
-### 5.2 Add an LLM provider
+### 5.2 Add an LLM vendor
 
-1. Create `app/services/llm/<provider>.py` with a class implementing `LLMProvider`.
-2. Register it in `factory.py`'s provider map, keyed by the `LLM_PROVIDER` value.
-3. Add its API key to `config.py` **and** `.env.example`.
-4. Translate SDK exceptions into `LLMProviderError` at the boundary — SDK types must not leak out.
+1. Add its `<prefix>` → (`ENV_NAME`, key) entry to `key_by_prefix` in `factory.py`.
+2. Add its API key to `config.py` **and** `.env.example`.
+3. Select it by listing `<prefix>/<model>` in `LLM_MODELS` (order = priority: first is primary, the rest
+   are fallbacks).
+4. If the vendor needs special request parameters (e.g. prompt caching), handle them in
+   `litellm.py`; SDK exceptions must keep translating to `LLMProviderError` there.
 5. Do not touch the service, the router, or the schemas.
+
+Only if a backend LiteLLM cannot reach is ever needed: add a class implementing
+`StreamingLLMProvider` in a new file and choose it in `factory.py`.
 
 ### 5.3 Add / change prompt context (CAG)
 
@@ -333,8 +338,7 @@ Fix these opportunistically when you touch the surrounding code; do not replicat
 
 | # | Issue | Location | Fix |
 |---|---|---|---|
-| 1 | Typos in setting names: `open_api_key`, `antropic_api_key` | `config.py`, `.env.example` | Rename to `openai_api_key` / `anthropic_api_key` (both files, same commit) |
-| 2 | All settings required → app crashes on boot with a partial `.env` | `config.py` | Defaults for non-secrets if desired; provider keys optional — intentionally left required for now |
+| 2 | All settings required → app crashes on boot with a partial `.env` | `config.py` | Provider keys are now optional (the factory checks the ones in use); defaults for the remaining non-secrets if desired |
 | 5 | `estimation` returned as an opaque Markdown blob | `routers/estimations.py` | Consider a structured response (tasks, total hours, weeks) when a consumer needs it — not before |
 | 6 | No Python linter/formatter yet | repo-wide | Add `ruff` when style drift shows up (§8) |
 
@@ -351,7 +355,7 @@ pnpm test:coverage       # pytest --cov=app + vitest --coverage
 ```
 
 - API: `pytest` + `TestClient`. `tests/conftest.py` pins fake settings and **fails any test that
-  reaches the real OpenAI SDK**; use `FakeProvider` / the fake SDK client instead.
+  reaches the real `litellm.completion`**; use `FakeProvider` / the fake SDK client instead.
 - UI: Vitest + React Testing Library + jsdom. Mock `web/src/api/client.ts` at the module boundary;
   query by role/label, not by class names.
 

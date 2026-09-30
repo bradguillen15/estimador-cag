@@ -31,7 +31,7 @@ reviews:
         Follow AGENTS.md (it is the source of truth for this repo):
         - Layering: routers → services → prompts/config. Routers never build prompts or call an SDK;
           services never import fastapi or raise HTTPException; env vars are read only in app/config.py.
-        - The OpenAI SDK may only be used in app/services/llm/openai.py. SDK exceptions must be
+        - LLM SDKs (litellm) may only be used in app/services/llm/litellm.py. SDK exceptions must be
           translated to LLMProviderError, and error messages returned to clients must not leak provider
           details or secrets.
         - Collaborators are injected with FastAPI Depends (app/dependencies.py), not created at import time.

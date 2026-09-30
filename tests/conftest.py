@@ -6,10 +6,8 @@ import os
 # Explicit env vars win over the developer's .env, so a real key can never be picked up.
 os.environ.update(
     {
-        "OPEN_API_KEY": "test-key",
-        "ANTROPIC_API_KEY": "test-key",
-        "LLM_PROVIDER": "openai",
-        "LLM_MODEL": "gpt-test",
+        "OPENAI_API_KEY": "test-key",
+        "ANTHROPIC_API_KEY": "test-key",
         "APP_ENV": "development",
         "LOG_LEVEL": "WARNING",
     }
@@ -17,9 +15,9 @@ os.environ.update(
 
 from collections.abc import Iterator  # noqa: E402
 
+import litellm  # noqa: E402
 import pytest  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
-from openai.resources.chat.completions import Completions  # noqa: E402
 
 from app.dependencies import get_estimation_service  # noqa: E402
 from app.main import app  # noqa: E402
@@ -36,12 +34,12 @@ VALID_REQUEST: dict[str, str] = {
 
 @pytest.fixture(autouse=True)
 def _forbid_real_llm_calls(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Safety net: any code path that reaches the real OpenAI SDK fails the test."""
+    """Safety net: any code path that reaches the real LiteLLM completion fails the test."""
 
     def _blocked(*_args: object, **_kwargs: object) -> None:
-        raise AssertionError("A test tried to call the real OpenAI API")
+        raise AssertionError("A test tried to call a real LLM API")
 
-    monkeypatch.setattr(Completions, "create", _blocked)
+    monkeypatch.setattr(litellm, "completion", _blocked)
 
 
 class FakeProvider:

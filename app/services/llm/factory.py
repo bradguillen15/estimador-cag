@@ -1,25 +1,40 @@
-"""Picks the LLM provider from the ``LLM_PROVIDER`` setting."""
-
-from collections.abc import Callable
+"""Builds the LLM provider (LiteLLM) from the ``LLM_MODELS`` setting."""
 
 from app.config import Settings
 from app.services.llm.base import StreamingLLMProvider
-from app.services.llm.openai import OpenAIProvider
+from app.services.llm.litellm import LiteLLMProvider
 
-_PROVIDERS: dict[str, Callable[[Settings], StreamingLLMProvider]] = {
-    "openai": lambda settings: OpenAIProvider(
-        api_key=settings.open_api_key,
-        model=settings.llm_model,
-    ),
-}
+
+def _require_key(name: str, value: str | None) -> str:
+    """Fails at build time (boot / first use), never in the middle of a request."""
+    if not value:
+        raise ValueError(f"{name} is required by the configured LLM provider but is not set.")
+    return value
 
 
 def get_llm_provider(settings: Settings) -> StreamingLLMProvider:
-    try:
-        build = _PROVIDERS[settings.llm_provider.strip().lower()]
-    except KeyError:
-        raise ValueError(
-            f"Unsupported LLM_PROVIDER: {settings.llm_provider!r}. "
-            f"Options: {', '.join(sorted(_PROVIDERS))}"
-        ) from None
-    return build(settings)
+    key_by_prefix = {
+        "anthropic": ("ANTHROPIC_API_KEY", settings.anthropic_api_key),
+        "openai": ("OPENAI_API_KEY", settings.openai_api_key),
+    }
+    if not settings.llm_models:
+        raise ValueError("LLM_MODELS must list at least one '<provider>/<model>' entry.")
+
+    api_keys: dict[str, str] = {}
+    for model in settings.llm_models:
+        prefix = model.split("/", 1)[0]
+        if "/" not in model or prefix not in key_by_prefix:
+            raise ValueError(
+                f"Unsupported LLM_MODELS entry: {model!r}. "
+                f"Use '<provider>/<model>' with a provider in: {', '.join(sorted(key_by_prefix))}"
+            )
+        env_name, key = key_by_prefix[prefix]
+        api_keys[prefix] = _require_key(env_name, key)
+
+    return LiteLLMProvider(
+        models=settings.llm_models,
+        api_keys=api_keys,
+        timeout=settings.llm_timeout,
+        retries=settings.llm_retries,
+        max_tokens=settings.llm_max_tokens,
+    )

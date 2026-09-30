@@ -8,7 +8,7 @@ Markdown estimate (assumptions, task breakdown, total hours, team and duration).
 |---|---|
 | ![Estimator in dark mode answering in Spanish](docs/screenshots/estimator-dark-es.png) | ![Estimator in light mode answering in English](docs/screenshots/estimator-light-en.png) |
 
-- **API:** FastAPI + OpenAI (`app/`), JSON and SSE streaming endpoints.
+- **API:** FastAPI + LiteLLM (Anthropic primary, OpenAI fallback) (`app/`), JSON and SSE streaming endpoints.
 - **UI:** React 19 + TypeScript + Tailwind v4 on Vite (`web/`). Dark by default, light/dark
   toggle, language toggle (Español / English) for both the UI copy and the model response.
 - **Prompts:** versioned Jinja2 templates in English (`app/prompts/estimation/v2/`); the model
@@ -19,7 +19,7 @@ Markdown estimate (assumptions, task breakdown, total hours, team and duration).
 - Python 3.13 with [uv](https://docs.astral.sh/uv/)
 - **Node 24 LTS** (pinned in `.nvmrc`: run `nvm use`) and **pnpm 10** (the repo is a pnpm workspace;
   `npm install` is blocked on purpose). With Node 24, `corepack enable pnpm` installs the pinned pnpm.
-- An OpenAI API key
+- An Anthropic and/or OpenAI API key, for the providers listed in `LLM_MODELS`
 
 ## Setup
 
@@ -27,8 +27,22 @@ Markdown estimate (assumptions, task breakdown, total hours, team and duration).
 nvm use                # Node 24 from .nvmrc
 uv sync                # Python dependencies
 pnpm install           # JS dependencies (whole workspace) + the pre-commit hook
-cp .env.example .env   # then set OPEN_API_KEY
+cp .env.example .env   # then set ANTHROPIC_API_KEY and OPENAI_API_KEY
 ```
+
+## LLM provider
+
+`LLM_MODELS` is the single source of truth for the model and the fallback order. It is a
+comma-separated `<provider>/<model>` list handled by [LiteLLM](https://docs.litellm.ai), e.g.
+`LLM_MODELS=anthropic/claude-sonnet-5-5,openai/gpt-4o-mini`. **Order = priority**: the first model is
+the primary and the following ones are fallbacks, tried when a call fails (before the first streamed
+token for `/estimate/stream`). Supported prefixes: `anthropic` (needs `ANTHROPIC_API_KEY`) and
+`openai` (needs `OPENAI_API_KEY`); only the keys of the providers you list are required, and a
+missing key fails at startup. The Anthropic system message is marked for prompt caching.
+
+`LLM_TIMEOUT` (seconds, default 30), `LLM_RETRIES` (per model, default 2) and `LLM_MAX_TOKENS`
+(default 16000) apply to every model in the list where supported. Logs include `served_model` and
+`fallback_used`.
 
 ## Run
 
@@ -62,8 +76,8 @@ pnpm test:coverage   # coverage for both
 pnpm lint            # ESLint (pnpm build also type-checks)
 ```
 
-Tests never call the real LLM: the API tests use a fake provider (and fail if anything reaches the
-OpenAI SDK), and the UI tests mock `web/src/api/client.ts`. The prompt template tests in
+Tests never call the real LLM: the API tests use a fake provider (and fail if anything reaches
+`litellm.completion`), and the UI tests mock `web/src/api/client.ts`. The prompt template tests in
 `tests/prompts/` render the templates only and run in milliseconds.
 
 ### Pre-commit hook
