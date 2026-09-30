@@ -19,6 +19,7 @@ class GenerationMetrics:
     latency_seconds: float | None = None
     cached_tokens: int | None = None
     cost_usd: float | None = None
+    cache_hit: bool = False  # answered from the response cache, no LLM call
 
 
 class LLMProvider(Protocol):

@@ -66,6 +66,7 @@ async def create_estimate_stream(
                     "input_tokens": metrics.input_tokens,
                     "output_tokens": metrics.output_tokens,
                     "latency_seconds": metrics.latency_seconds,
+                    "cache_hit": metrics.cache_hit,
                     "prompt_version": PROMPT_VERSION,
                 },
                 event="done",

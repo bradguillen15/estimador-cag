@@ -1,11 +1,17 @@
-"""Estimation use case: renders the prompts and delegates the call to the LLM provider."""
+"""Estimation use case.
 
-from collections.abc import Iterator
+Pipeline (input guardrails run earlier, in ``prepare``): exact cache -> LLM -> output check ->
+store. Only answers that completed and passed the output check are cached.
+"""
+
+from collections.abc import Iterator, Sequence
+from time import perf_counter
 
 import structlog
 
 from app.prompts.loader import PROMPT_VERSION, render_estimation_examples, render_estimation_prompt
 from app.schemas.estimations import EstimationRequest
+from app.services.cache.base import CachedAnswer, NoOpCache, ResponseCache, make_cache_key
 from app.services.guardrails.input import InputGuardrails
 from app.services.guardrails.output import check_estimation_output
 from app.services.llm.base import GenerationMetrics, StreamingLLMProvider
@@ -16,9 +22,18 @@ logger = structlog.get_logger()
 
 
 class EstimationService:
-    def __init__(self, provider: StreamingLLMProvider, guardrails: InputGuardrails | None = None) -> None:
+    def __init__(
+        self,
+        provider: StreamingLLMProvider,
+        guardrails: InputGuardrails | None = None,
+        cache: ResponseCache | None = None,
+        cache_models: Sequence[str] | None = None,
+    ) -> None:
         self._provider = provider
         self._guardrails = guardrails or InputGuardrails()
+        self._cache = cache if cache is not None else NoOpCache()
+        # Part of the cache key: changing the configured model list must not serve old answers.
+        self._cache_models = tuple(cache_models) if cache_models else (provider.model,)
 
     @property
     def provider_name(self) -> str:
@@ -42,9 +57,15 @@ class EstimationService:
         return request.model_copy(update={"description": safe_description})
 
     def generate(self, request: EstimationRequest) -> str:
+        key = make_cache_key(request, PROMPT_VERSION, self._cache_models)
+        cached = self._cache.get(key)
+        if cached is not None:
+            return cached.text
+
         system, user = render_estimation_prompt(request)
         text = self._provider.complete(system, user)
-        self._passes_output_check(request, text)
+        if self._passes_output_check(request, text):
+            self._cache.set(key, CachedAnswer(text=text))
         return text
 
     def generate_stream(
@@ -52,13 +73,28 @@ class EstimationService:
         request: EstimationRequest,
         metrics: GenerationMetrics | None = None,
     ) -> Iterator[str]:
+        started_at = perf_counter()
+        key = make_cache_key(request, PROMPT_VERSION, self._cache_models)
+        cached = self._cache.get(key)
+        if cached is not None:
+            if metrics is not None:
+                metrics.cache_hit = True
+                metrics.model = cached.model or "cache"
+                metrics.latency_seconds = round(perf_counter() - started_at, 4)
+            # Replay line by line so the client sees the same token events as a live generation.
+            yield from cached.text.splitlines(keepends=True)
+            return
+
         system, user = render_estimation_prompt(request)
         chunks: list[str] = []
         for chunk in self._provider.stream(system, user, metrics=metrics):
             chunks.append(chunk)
             yield chunk
-        # Reached only when the stream completed (an error or a client disconnect skips it).
-        self._passes_output_check(request, "".join(chunks))
+        # Reached only when the stream completed (an error or a client disconnect skips it), so a
+        # broken stream is never checked nor cached.
+        text = "".join(chunks)
+        if self._passes_output_check(request, text):
+            self._cache.set(key, CachedAnswer(text=text, model=metrics.model if metrics else None))
 
     @staticmethod
     def _passes_output_check(request: EstimationRequest, text: str) -> bool:

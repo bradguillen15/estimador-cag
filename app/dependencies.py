@@ -7,6 +7,7 @@ from fastapi import Depends
 
 from app.config import settings
 from app.schemas.estimations import EstimationRequest
+from app.services.cache.factory import get_response_cache
 from app.services.estimation_service import EstimationService
 from app.services.guardrails.input import InputGuardrails
 from app.services.llm.factory import get_llm_provider, get_moderator
@@ -17,6 +18,8 @@ def get_estimation_service() -> EstimationService:
     return EstimationService(
         provider=get_llm_provider(settings),
         guardrails=InputGuardrails(moderator=get_moderator(settings)),
+        cache=get_response_cache(settings),
+        cache_models=tuple(settings.llm_models),
     )
 
 

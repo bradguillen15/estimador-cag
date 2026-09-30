@@ -25,6 +25,10 @@ class Settings(BaseSettings):
     llm_max_tokens: int = 16000
     # Input moderation (OpenAI moderation endpoint via LiteLLM). Needs OPENAI_API_KEY; fails open.
     moderation_enabled: bool = False
+    # Exact response cache (Redis). Disabled by default; an unreachable Redis only logs a warning.
+    cache_enabled: bool = False
+    redis_url: str = "redis://localhost:6379/0"
+    cache_ttl: int = 86400
     app_env: str
     log_level: str
 

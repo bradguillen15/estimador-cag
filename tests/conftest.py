@@ -21,6 +21,7 @@ from fastapi.testclient import TestClient  # noqa: E402
 
 from app.dependencies import get_estimation_service  # noqa: E402
 from app.main import app  # noqa: E402
+from app.services.cache.base import CachedAnswer  # noqa: E402
 from app.services.estimation_service import EstimationService  # noqa: E402
 from app.services.llm.base import GenerationMetrics  # noqa: E402
 
@@ -89,15 +90,38 @@ class FakeProvider:
             metrics.latency_seconds = 0.5
 
 
+class FakeCache:
+    """In-memory ``ResponseCache`` that records every get/set."""
+
+    def __init__(self) -> None:
+        self.store: dict[str, CachedAnswer] = {}
+        self.gets: list[str] = []
+        self.sets: list[str] = []
+
+    def get(self, key: str) -> CachedAnswer | None:
+        self.gets.append(key)
+        return self.store.get(key)
+
+    def set(self, key: str, answer: CachedAnswer) -> None:
+        self.sets.append(key)
+        self.store[key] = answer
+
+
+@pytest.fixture
+def fake_cache() -> FakeCache:
+    return FakeCache()
+
+
 @pytest.fixture
 def fake_provider() -> FakeProvider:
     return FakeProvider()
 
 
 @pytest.fixture
-def client(fake_provider: FakeProvider) -> Iterator[TestClient]:
-    """API client whose estimation service talks to ``fake_provider``."""
-    app.dependency_overrides[get_estimation_service] = lambda: EstimationService(fake_provider)
+def client(fake_provider: FakeProvider, fake_cache: FakeCache) -> Iterator[TestClient]:
+    """API client whose estimation service talks to ``fake_provider`` and caches in ``fake_cache``."""
+    service = EstimationService(fake_provider, cache=fake_cache)
+    app.dependency_overrides[get_estimation_service] = lambda: service
     with TestClient(app, raise_server_exceptions=False) as test_client:
         yield test_client
     app.dependency_overrides.clear()

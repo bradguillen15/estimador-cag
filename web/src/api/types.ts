@@ -35,6 +35,8 @@ export interface GenerationMeta {
   input_tokens?: number | null
   output_tokens?: number | null
   latency_seconds?: number | null
+  /** True when the answer was replayed from the response cache (no LLM call). */
+  cache_hit?: boolean
   prompt_version: string
 }
 

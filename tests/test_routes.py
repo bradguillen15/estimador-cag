@@ -134,6 +134,7 @@ def test_stream_emits_tokens_then_a_done_event_with_metadata(client: TestClient,
             "input_tokens": 100,
             "output_tokens": 20,
             "latency_seconds": 0.5,
+            "cache_hit": False,
             "prompt_version": PROMPT_VERSION,
         },
     )
