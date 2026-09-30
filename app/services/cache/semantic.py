@@ -7,10 +7,15 @@ score but never returns a hit, to calibrate the threshold on real traffic before
 
 The embedding is computed once per request (in ``lookup``) and reused by ``store``.
 Needs Redis Stack (RediSearch); vanilla Redis fails at index creation and the cache stays off.
+
+The bucket also carries a short hash of the configured model list, so changing ``LLM_MODELS``
+never serves another model's answers. A setup failure is permanent for the process (the service
+is built once): restart the app to retry. There is deliberately no retry machinery.
 """
 
 import hashlib
 import json
+from collections.abc import Sequence
 from array import array
 from dataclasses import dataclass
 from typing import Any, Protocol
@@ -42,6 +47,11 @@ class SemanticCache(Protocol):
     def lookup(self, request: EstimationRequest, prompt_version: str) -> SemanticLookup: ...
 
     def store(self, lookup: SemanticLookup, answer: CachedAnswer) -> None: ...
+
+
+def models_scope(models: Sequence[str]) -> str:
+    """Short, order-sensitive fingerprint of the configured model list."""
+    return hashlib.sha256("|".join(models).encode()).hexdigest()[:8]
 
 
 def make_bucket(request: EstimationRequest, prompt_version: str) -> str:
@@ -92,7 +102,9 @@ class RedisSemanticCache:
         threshold: float,
         ttl: int,
         log_only: bool,
+        models: Sequence[str] = (),
     ) -> None:
+        self._scope = models_scope(models)
         self._index = index
         self._embedder = embedder
         self._dims = dims
@@ -101,7 +113,7 @@ class RedisSemanticCache:
         self._log_only = log_only
 
     def lookup(self, request: EstimationRequest, prompt_version: str) -> SemanticLookup:
-        bucket = make_bucket(request, prompt_version)
+        bucket = f"{make_bucket(request, prompt_version)}:{self._scope}"
         try:
             vector = self._embedder.embed(request.description)
             if len(vector) != self._dims:
@@ -157,7 +169,7 @@ class RedisSemanticCache:
             logger.warning("semantic_cache_store_failed", error_type=type(exc).__name__)
 
 
-def build_semantic_cache(settings: Settings, embedder: EmbeddingProvider) -> SemanticCache:
+def build_semantic_cache(settings: Settings, embedder: EmbeddingProvider, models: Sequence[str] = ()) -> SemanticCache:
     """A Redis semantic cache, or a no-op when the setup fails (logged). Call it only when enabled."""
     try:
         # One index per embedding model: vectors from different models must never be compared.
@@ -176,4 +188,5 @@ def build_semantic_cache(settings: Settings, embedder: EmbeddingProvider) -> Sem
         threshold=settings.semantic_cache_threshold,
         ttl=settings.semantic_cache_ttl,
         log_only=settings.semantic_cache_log_only,
+        models=models,
     )

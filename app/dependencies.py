@@ -17,7 +17,7 @@ from app.services.llm.factory import get_embedder, get_llm_provider, get_moderat
 def _get_semantic_cache() -> SemanticCache:
     if not settings.semantic_cache_enabled:
         return NoOpSemanticCache()
-    return build_semantic_cache(settings, get_embedder(settings))
+    return build_semantic_cache(settings, get_embedder(settings), settings.llm_models)
 
 
 @lru_cache

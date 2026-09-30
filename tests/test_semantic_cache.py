@@ -17,6 +17,7 @@ from app.services.cache.semantic import (
     SemanticLookup,
     build_semantic_cache,
     make_bucket,
+    models_scope,
 )
 from app.services.estimation_service import PROMPT_VERSION, EstimationService
 from app.services.llm.embeddings import LiteLLMEmbedder
@@ -64,7 +65,15 @@ class FakeIndex:
         self.loaded.append((data, ttl))
 
 
-def _cache(index: FakeIndex, embedder: FakeEmbedder | None = None, log_only: bool = False) -> RedisSemanticCache:
+MODELS = ("anthropic/a", "openai/b")
+
+
+def _cache(
+    index: FakeIndex,
+    embedder: FakeEmbedder | None = None,
+    log_only: bool = False,
+    models: tuple[str, ...] = MODELS,
+) -> RedisSemanticCache:
     return RedisSemanticCache(
         index,  # type: ignore[arg-type]
         embedder or FakeEmbedder(),
@@ -72,6 +81,7 @@ def _cache(index: FakeIndex, embedder: FakeEmbedder | None = None, log_only: boo
         threshold=0.92,
         ttl=60,
         log_only=log_only,
+        models=models,
     )
 
 
@@ -144,7 +154,7 @@ def test_store_reuses_the_vector_and_sets_the_ttl() -> None:
     assert len(embedder.texts) == 1  # embedded once, stored with the same vector
     (records, ttl), = index.loaded
     assert ttl == 60
-    assert records[0]["bucket"] == "v3:web_saas:medium:line_items:es"
+    assert records[0]["bucket"] == f"v3:web_saas:medium:line_items:es:{models_scope(MODELS)}"
     assert records[0]["embedding"] == array("f", [0.5, 0.5, 0.0]).tobytes()
     assert json.loads(records[0]["answer_json"]) == {"text": "t", "model": "m"}
 
@@ -155,6 +165,18 @@ def test_store_without_a_vector_or_with_a_failing_index_is_silent() -> None:
     assert index.loaded == []
 
     _cache(FakeIndex(error=ConnectionError("down"))).store(SemanticLookup(bucket="b", vector=[0.0] * 3), CachedAnswer(text="t"))
+
+
+def test_a_different_model_list_uses_a_different_bucket() -> None:
+    def bucket_for(models: tuple[str, ...]) -> str:
+        index = FakeIndex()
+        cache = _cache(index, models=models)
+        cache.store(cache.lookup(_request(), "v3"), CachedAnswer(text="t"))
+        return index.loaded[0][0][0]["bucket"]
+
+    assert bucket_for(MODELS) != bucket_for(("openai/b", "anthropic/a"))
+    assert bucket_for(MODELS) != bucket_for(MODELS[:1])
+    assert bucket_for(MODELS) == bucket_for(MODELS)
 
 
 # --- setup ------------------------------------------------------------------------------------
