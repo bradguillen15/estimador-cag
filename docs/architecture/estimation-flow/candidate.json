@@ -9,57 +9,500 @@
     "repository": {
       "url": "git@github.com:bradguillen15/estimador-cag.git",
       "link_mode": "local-only",
-      "revision": "64eea62eba582495e18d6ec51d4d2e8f75918754"
+      "revision": "a1e78d2c8a6e8ff96fb4c5155f8cf35070f49fb4"
     }
   },
   "components": [
-    { "id": "ui", "type": "frontend", "label": "React UI", "sublabel": "App + useEstimation", "tag": "SSE or JSON", "pos": [40, 290], "size": [140, 64],
-      "sources": [{ "path": "web/src/hooks/useEstimation.ts", "line": 26, "end_line": 38 }, { "path": "web/src/App.tsx", "line": 18, "end_line": 19 }] },
-    { "id": "client", "type": "frontend", "label": "API client", "sublabel": "client.ts fetch", "tag": "SSE parser", "pos": [300, 290], "size": [140, 64],
-      "sources": [{ "path": "web/src/api/client.ts", "line": 72, "end_line": 83 }] },
-    { "id": "router", "type": "backend", "label": "Estimations router", "sublabel": "/api/v1 routes", "tag": "validates request", "pos": [580, 290], "size": [140, 64],
-      "sources": [{ "path": "app/routers/estimations.py", "line": 28, "end_line": 58 }, { "path": "app/schemas/estimations.py", "line": 34, "end_line": 36 }] },
-    { "id": "service", "type": "backend", "label": "EstimationService", "sublabel": "use case", "pos": [860, 290], "size": [140, 64],
-      "sources": [{ "path": "app/services/estimation_service.py", "line": 12, "end_line": 37 }] },
-    { "id": "protocol", "type": "backend", "label": "LLMProvider protocol", "sublabel": "StreamingLLMProvider", "pos": [1160, 290], "size": [140, 64],
-      "sources": [{ "path": "app/services/llm/base.py", "line": 22, "end_line": 35 }] },
-    { "id": "di", "type": "backend", "label": "DI + provider factory", "sublabel": "lru_cache singleton", "pos": [860, 90], "size": [140, 64],
-      "sources": [{ "path": "app/dependencies.py", "line": 10, "end_line": 12 }, { "path": "app/services/llm/factory.py", "line": 9, "end_line": 25 }] },
-    { "id": "config", "type": "backend", "label": "Settings", "sublabel": "config.py + .env", "pos": [1160, 90], "size": [140, 64],
-      "sources": [{ "path": "app/config.py", "line": 4, "end_line": 19 }] },
-    { "id": "templates", "type": "database", "label": "Jinja2 templates", "sublabel": "estimation/v2/*.j2", "tag": "cacheable prefix", "pos": [580, 490], "size": [140, 64],
-      "sources": [{ "path": "app/prompts/estimation/v2/system.j2", "line": 54, "end_line": 64 }] },
-    { "id": "loader", "type": "backend", "label": "Prompt loader", "sublabel": "renders system + user", "pos": [860, 490], "size": [140, 64],
-      "sources": [{ "path": "app/prompts/loader.py", "line": 43, "end_line": 54 }, { "path": "app/prompts/loader.py", "line": 62, "end_line": 86 }] },
-    { "id": "provider", "type": "backend", "label": "OpenAIProvider", "sublabel": "only SDK user", "pos": [1160, 490], "size": [140, 64],
-      "sources": [{ "path": "app/services/llm/openai.py", "line": 41, "end_line": 57 }, { "path": "app/services/llm/openai.py", "line": 86, "end_line": 105 }] },
-    { "id": "openai", "type": "external", "label": "OpenAI API", "sublabel": "chat completions", "pos": [1460, 490], "size": [140, 64],
-      "sources": [{ "path": "app/services/llm/openai.py", "line": 100, "end_line": 105 }] },
-    { "id": "errors", "type": "backend", "label": "Error handlers", "sublabel": "main.py JSON detail", "tag": "500 / 502", "pos": [1160, 690], "size": [140, 64],
-      "sources": [{ "path": "app/main.py", "line": 49, "end_line": 57 }, { "path": "app/exceptions.py", "line": 4, "end_line": 13 }] }
+    {
+      "id": "ui",
+      "type": "frontend",
+      "label": "React UI",
+      "sublabel": "App + useEstimation",
+      "tag": "SSE or JSON",
+      "pos": [
+        40,
+        290
+      ],
+      "size": [
+        140,
+        64
+      ],
+      "sources": [
+        {
+          "path": "web/src/hooks/useEstimation.ts",
+          "line": 26,
+          "end_line": 38
+        },
+        {
+          "path": "web/src/App.tsx",
+          "line": 18,
+          "end_line": 19
+        }
+      ]
+    },
+    {
+      "id": "client",
+      "type": "frontend",
+      "label": "API client",
+      "sublabel": "client.ts fetch",
+      "tag": "SSE parser",
+      "pos": [
+        300,
+        290
+      ],
+      "size": [
+        140,
+        64
+      ],
+      "sources": [
+        {
+          "path": "web/src/api/client.ts",
+          "line": 72,
+          "end_line": 83
+        }
+      ]
+    },
+    {
+      "id": "router",
+      "type": "backend",
+      "label": "Estimations router",
+      "sublabel": "/api/v1 routes",
+      "tag": "validates request",
+      "pos": [
+        580,
+        290
+      ],
+      "size": [
+        140,
+        64
+      ],
+      "sources": [
+        {
+          "path": "app/routers/estimations.py",
+          "line": 28,
+          "end_line": 58
+        },
+        {
+          "path": "app/schemas/estimations.py",
+          "line": 34,
+          "end_line": 36
+        }
+      ]
+    },
+    {
+      "id": "service",
+      "type": "backend",
+      "label": "EstimationService",
+      "sublabel": "use case",
+      "pos": [
+        860,
+        290
+      ],
+      "size": [
+        140,
+        64
+      ],
+      "sources": [
+        {
+          "path": "app/services/estimation_service.py",
+          "line": 12,
+          "end_line": 37
+        }
+      ]
+    },
+    {
+      "id": "protocol",
+      "type": "backend",
+      "label": "LLMProvider protocol",
+      "sublabel": "StreamingLLMProvider",
+      "pos": [
+        1160,
+        290
+      ],
+      "size": [
+        140,
+        64
+      ],
+      "sources": [
+        {
+          "path": "app/services/llm/base.py",
+          "line": 24,
+          "end_line": 37
+        }
+      ]
+    },
+    {
+      "id": "di",
+      "type": "backend",
+      "label": "DI + provider factory",
+      "sublabel": "lru_cache singleton",
+      "pos": [
+        860,
+        90
+      ],
+      "size": [
+        140,
+        64
+      ],
+      "sources": [
+        {
+          "path": "app/dependencies.py",
+          "line": 10,
+          "end_line": 12
+        },
+        {
+          "path": "app/services/llm/factory.py",
+          "line": 15,
+          "end_line": 40
+        }
+      ]
+    },
+    {
+      "id": "config",
+      "type": "backend",
+      "label": "Settings",
+      "sublabel": "LLM_MODELS order",
+      "pos": [
+        1160,
+        90
+      ],
+      "size": [
+        140,
+        64
+      ],
+      "sources": [
+        {
+          "path": "app/config.py",
+          "line": 7,
+          "end_line": 37
+        }
+      ]
+    },
+    {
+      "id": "templates",
+      "type": "database",
+      "label": "Jinja2 templates",
+      "sublabel": "estimation/v2/*.j2",
+      "tag": "cacheable prefix",
+      "pos": [
+        580,
+        490
+      ],
+      "size": [
+        140,
+        64
+      ],
+      "sources": [
+        {
+          "path": "app/prompts/estimation/v2/system.j2",
+          "line": 54,
+          "end_line": 64
+        }
+      ]
+    },
+    {
+      "id": "loader",
+      "type": "backend",
+      "label": "Prompt loader",
+      "sublabel": "renders system + user",
+      "pos": [
+        860,
+        490
+      ],
+      "size": [
+        140,
+        64
+      ],
+      "sources": [
+        {
+          "path": "app/prompts/loader.py",
+          "line": 43,
+          "end_line": 54
+        },
+        {
+          "path": "app/prompts/loader.py",
+          "line": 62,
+          "end_line": 86
+        }
+      ]
+    },
+    {
+      "id": "provider",
+      "type": "backend",
+      "label": "LiteLLMProvider",
+      "sublabel": "ordered fallback",
+      "pos": [
+        1160,
+        490
+      ],
+      "size": [
+        140,
+        64
+      ],
+      "sources": [
+        {
+          "path": "app/services/llm/litellm.py",
+          "line": 93,
+          "end_line": 107
+        },
+        {
+          "path": "app/services/llm/litellm.py",
+          "line": 109,
+          "end_line": 144
+        },
+        {
+          "path": "app/services/llm/litellm.py",
+          "line": 146,
+          "end_line": 239
+        }
+      ],
+      "tag": "only SDK user"
+    },
+    {
+      "id": "anthropic",
+      "type": "external",
+      "label": "Anthropic API",
+      "sublabel": "primary model",
+      "tag": "cached system prompt",
+      "pos": [
+        1460,
+        390
+      ],
+      "size": [
+        140,
+        64
+      ],
+      "sources": [
+        {
+          "path": "app/services/llm/litellm.py",
+          "line": 100,
+          "end_line": 107
+        },
+        {
+          "path": "app/config.py",
+          "line": 19,
+          "end_line": 24
+        }
+      ]
+    },
+    {
+      "id": "openai",
+      "type": "external",
+      "label": "OpenAI API",
+      "sublabel": "fallback model",
+      "pos": [
+        1460,
+        590
+      ],
+      "size": [
+        140,
+        64
+      ],
+      "sources": [
+        {
+          "path": "app/services/llm/factory.py",
+          "line": 16,
+          "end_line": 20
+        }
+      ]
+    },
+    {
+      "id": "errors",
+      "type": "backend",
+      "label": "Error handlers",
+      "sublabel": "main.py JSON detail",
+      "tag": "500 / 502",
+      "pos": [
+        1160,
+        690
+      ],
+      "size": [
+        140,
+        64
+      ],
+      "sources": [
+        {
+          "path": "app/main.py",
+          "line": 49,
+          "end_line": 57
+        },
+        {
+          "path": "app/exceptions.py",
+          "line": 4,
+          "end_line": 13
+        }
+      ]
+    }
   ],
   "boundaries": [
-    { "kind": "region", "label": "Browser: web/src", "wraps": ["ui", "client"] },
-    { "kind": "region", "label": "FastAPI app: app/", "wraps": ["router", "service", "protocol", "di", "config", "templates", "loader", "provider", "errors"] }
+    {
+      "kind": "region",
+      "label": "Browser: web/src",
+      "wraps": [
+        "ui",
+        "client"
+      ]
+    },
+    {
+      "kind": "region",
+      "label": "FastAPI app: app/",
+      "wraps": [
+        "router",
+        "service",
+        "protocol",
+        "di",
+        "config",
+        "templates",
+        "loader",
+        "provider",
+        "errors"
+      ]
+    }
   ],
   "connections": [
-    { "id": "ui-to-client", "from": "ui", "to": "client", "label": "hook call", "variant": "emphasis" },
-    { "id": "client-to-router", "from": "client", "to": "router", "label": "HTTP or SSE", "variant": "emphasis" },
-    { "id": "router-to-service", "from": "router", "to": "service", "label": "generate()" },
-    { "id": "service-to-protocol", "from": "service", "to": "protocol", "label": "complete / stream" },
-    { "id": "protocol-to-provider", "from": "protocol", "to": "provider", "label": "implemented by", "variant": "dashed", "fromSide": "bottom", "toSide": "top" },
-    { "id": "provider-to-openai", "from": "provider", "to": "openai", "label": "chat.completions", "variant": "emphasis" },
-    { "id": "router-to-di", "from": "router", "to": "di", "label": "Depends", "variant": "dashed", "fromSide": "top", "toSide": "left" },
-    { "id": "config-to-di", "from": "config", "to": "di", "label": "settings" },
-    { "id": "di-to-service", "from": "di", "to": "service", "label": "injects provider", "fromSide": "bottom", "toSide": "top" },
-    { "id": "service-to-loader", "from": "service", "to": "loader", "label": "render prompts", "fromSide": "bottom", "toSide": "top" },
-    { "id": "loader-to-templates", "from": "loader", "to": "templates", "label": "renders" },
-    { "id": "provider-to-errors", "from": "provider", "to": "errors", "label": "LLMProviderError", "variant": "security", "fromSide": "bottom", "toSide": "top" },
-    { "id": "loader-to-errors", "from": "loader", "to": "errors", "label": "PromptTemplateError", "variant": "security", "fromSide": "bottom", "toSide": "left" }
+    {
+      "id": "ui-to-client",
+      "from": "ui",
+      "to": "client",
+      "label": "hook call",
+      "variant": "emphasis"
+    },
+    {
+      "id": "client-to-router",
+      "from": "client",
+      "to": "router",
+      "label": "HTTP or SSE",
+      "variant": "emphasis"
+    },
+    {
+      "id": "router-to-service",
+      "from": "router",
+      "to": "service",
+      "label": "generate()"
+    },
+    {
+      "id": "service-to-protocol",
+      "from": "service",
+      "to": "protocol",
+      "label": "complete / stream"
+    },
+    {
+      "id": "protocol-to-provider",
+      "from": "protocol",
+      "to": "provider",
+      "label": "implemented by",
+      "variant": "dashed",
+      "fromSide": "bottom",
+      "toSide": "top"
+    },
+    {
+      "id": "provider-to-anthropic",
+      "from": "provider",
+      "to": "anthropic",
+      "label": "1st try",
+      "variant": "emphasis"
+    },
+    {
+      "id": "provider-to-openai",
+      "from": "provider",
+      "to": "openai",
+      "label": "on failure",
+      "variant": "dashed"
+    },
+    {
+      "id": "router-to-di",
+      "from": "router",
+      "to": "di",
+      "label": "Depends",
+      "variant": "dashed",
+      "fromSide": "top",
+      "toSide": "left"
+    },
+    {
+      "id": "config-to-di",
+      "from": "config",
+      "to": "di",
+      "label": "settings"
+    },
+    {
+      "id": "di-to-service",
+      "from": "di",
+      "to": "service",
+      "label": "injects provider",
+      "fromSide": "bottom",
+      "toSide": "top"
+    },
+    {
+      "id": "service-to-loader",
+      "from": "service",
+      "to": "loader",
+      "label": "render prompts",
+      "fromSide": "bottom",
+      "toSide": "top"
+    },
+    {
+      "id": "loader-to-templates",
+      "from": "loader",
+      "to": "templates",
+      "label": "renders"
+    },
+    {
+      "id": "provider-to-errors",
+      "from": "provider",
+      "to": "errors",
+      "label": "LLMProviderError",
+      "variant": "security",
+      "fromSide": "bottom",
+      "toSide": "top"
+    },
+    {
+      "id": "loader-to-errors",
+      "from": "loader",
+      "to": "errors",
+      "label": "PromptTemplateError",
+      "variant": "security",
+      "fromSide": "bottom",
+      "toSide": "left"
+    }
   ],
   "cards": [
-    { "dot": "cyan", "title": "Prompt assembly (CAG)", "items": ["system.j2: static rules + examples.j2 prefix", "Then request.j2 (detail, format) and language.j2", "user.j2 wraps the description in project_description tags", "System prompt cached per version, detail, format, language"] },
-    { "dot": "emerald", "title": "Endpoints", "items": ["POST /estimate returns JSON text", "POST /estimate/stream sends SSE token and done events", "GET /context returns the CAG examples for the UI"] },
-    { "dot": "rose", "title": "Errors to HTTP", "items": ["PromptTemplateError becomes 500, LLMProviderError 502", "Stream failures become an SSE error event, HTTP stays 200", "Description length is validated by Pydantic (20 to 2000)"] }
+    {
+      "dot": "cyan",
+      "title": "Prompt assembly (CAG)",
+      "items": [
+        "system.j2: static rules + examples.j2 prefix",
+        "Then request.j2 (detail, format) and language.j2",
+        "user.j2 wraps the description in project_description tags",
+        "System prompt cached per version, detail, format, language"
+      ]
+    },
+    {
+      "dot": "violet",
+      "title": "LLM routing (LiteLLM)",
+      "items": [
+        "LLM_MODELS is ordered: first model is primary",
+        "A failed call falls back to the next model",
+        "Streams fall back only before the first chunk",
+        "Anthropic caches the system prompt prefix"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "Endpoints",
+      "items": [
+        "POST /estimate returns JSON text",
+        "POST /estimate/stream sends SSE token and done events",
+        "GET /context returns the CAG examples for the UI"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Errors to HTTP",
+      "items": [
+        "PromptTemplateError becomes 500, LLMProviderError 502",
+        "Stream failures become an SSE error event, HTTP stays 200",
+        "Description length is validated by Pydantic (20 to 2000)"
+      ]
+    }
   ]
 }
