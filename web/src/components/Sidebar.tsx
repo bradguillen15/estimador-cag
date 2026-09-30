@@ -4,7 +4,7 @@ import { API_LABEL, checkHealth, getPromptContext } from '../api/client'
 import type { PromptContext, ResponseLanguage } from '../api/types'
 import { useT } from '../i18n/useLocale'
 import type { Theme } from '../hooks/useTheme'
-import { Chevron } from './icons'
+import { Chevron, RulerMeasure } from './icons'
 import { LanguageToggle } from './LanguageToggle'
 import { Markdown } from './Markdown'
 import { ThemeToggle } from './ThemeToggle'
@@ -24,7 +24,9 @@ export function Sidebar({ streaming, onStreamingChange, language, onLanguageChan
   return (
     <aside className="flex flex-col gap-7 border-b border-line bg-sidebar px-4 py-5 md:sticky md:top-0 md:h-screen md:gap-8 md:overflow-y-auto md:border-r md:border-b-0 md:px-[22px] md:py-7">
       <div className="flex items-center gap-2.5 font-semibold tracking-[-0.01em]">
-        <span className="grid size-[26px] place-items-center rounded-[10px] bg-btn text-[13px] font-bold text-btn-ink">E</span>
+        <span className="grid size-[26px] place-items-center rounded-[10px] bg-btn text-btn-ink">
+          <RulerMeasure className="size-4" />
+        </span>
         {t('brand.name')}
       </div>
 
