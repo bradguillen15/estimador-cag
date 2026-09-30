@@ -201,6 +201,17 @@ def test_examples_cover_every_output_format() -> None:
         assert output_format in examples
 
 
+def test_table_example_rows_sum_to_the_stated_total_and_fit_the_medium_range() -> None:
+    examples = render_estimation_examples(PROMPT_VERSION)
+    section = examples.split("| Phase | Tasks | Hours |")[1].split("\n---\n")[0]
+    rows = [line for line in section.splitlines() if line.startswith("|") and not line.startswith("|---")]
+    hours = [int(line.strip("|").split("|")[-1]) for line in rows]
+    total = int(section.split("**Total estimate: ")[1].split(" hours")[0])
+    assert 5 <= len(rows) <= 8  # `request.j2` asks for 5-8 items at medium detail
+    assert sum(hours) == total
+
+
+
 # --- versions and failures --------------------------------------------------------------------
 
 
