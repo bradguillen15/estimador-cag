@@ -2,12 +2,17 @@
 
 from collections.abc import Iterator
 
+import structlog
+
 from app.prompts.loader import PROMPT_VERSION, render_estimation_examples, render_estimation_prompt
 from app.schemas.estimations import EstimationRequest
 from app.services.guardrails.input import InputGuardrails
+from app.services.guardrails.output import check_estimation_output
 from app.services.llm.base import GenerationMetrics, StreamingLLMProvider
 
 __all__ = ["PROMPT_VERSION", "EstimationService"]
+
+logger = structlog.get_logger()
 
 
 class EstimationService:
@@ -38,7 +43,9 @@ class EstimationService:
 
     def generate(self, request: EstimationRequest) -> str:
         system, user = render_estimation_prompt(request)
-        return self._provider.complete(system, user)
+        text = self._provider.complete(system, user)
+        self._passes_output_check(request, text)
+        return text
 
     def generate_stream(
         self,
@@ -46,4 +53,23 @@ class EstimationService:
         metrics: GenerationMetrics | None = None,
     ) -> Iterator[str]:
         system, user = render_estimation_prompt(request)
-        yield from self._provider.stream(system, user, metrics=metrics)
+        chunks: list[str] = []
+        for chunk in self._provider.stream(system, user, metrics=metrics):
+            chunks.append(chunk)
+            yield chunk
+        # Reached only when the stream completed (an error or a client disconnect skips it).
+        self._passes_output_check(request, "".join(chunks))
+
+    @staticmethod
+    def _passes_output_check(request: EstimationRequest, text: str) -> bool:
+        """Logs a structured warning when the answer breaks the format; such answers are not cacheable."""
+        check = check_estimation_output(text, request.language)
+        if not check.passed:
+            logger.warning(
+                "output_check_failed",
+                reason=check.reason,
+                language=request.language.value,
+                prompt_version=PROMPT_VERSION,
+                output_chars=len(text),
+            )
+        return check.passed
