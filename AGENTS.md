@@ -265,6 +265,9 @@ Only if a backend LiteLLM cannot reach is ever needed: add a class implementing
 - Prompts live in `app/prompts/estimation/<version>/` (`system.j2`, `examples.j2`, `user.j2`).
   Changing wording or examples in a way that alters output → new version folder + bump
   `PROMPT_VERSION`.
+- Every estimate endpoint and `/context` accept `?prompt_version=<vN>` (validated against the
+  folders on disk in `dependencies.get_prompt_version` → 422); the default is `PROMPT_VERSION`.
+  The effective version must flow into rendering, both cache keys and the response, never the constant.
 - The active version is `v3` (adds the confidence line, items-then-sum rule, discovery/deployment and
   no-invented-dates rules). The output check (`services/guardrails/output.py`) mirrors the closing-block
   labels of `language.j2`: change them together (a test keeps them in sync).

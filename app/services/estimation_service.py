@@ -46,9 +46,9 @@ class EstimationService:
     def model(self) -> str:
         return self._provider.model
 
-    def context_examples(self) -> str:
+    def context_examples(self, prompt_version: str = PROMPT_VERSION) -> str:
         """CAG examples the model receives in the system prompt (Markdown)."""
-        return render_estimation_examples()
+        return render_estimation_examples(prompt_version)
 
     def prepare(self, request: EstimationRequest) -> EstimationRequest:
         """Runs the input guardrails; returns the request with the sanitized description.
@@ -59,19 +59,19 @@ class EstimationService:
         safe_description = self._guardrails.check(request.description)
         return request.model_copy(update={"description": safe_description})
 
-    def generate(self, request: EstimationRequest) -> str:
-        key = make_cache_key(request, PROMPT_VERSION, self._cache_models)
+    def generate(self, request: EstimationRequest, prompt_version: str = PROMPT_VERSION) -> str:
+        key = make_cache_key(request, prompt_version, self._cache_models)
         cached = self._cache.get(key)
         if cached is not None:
             return cached.text
 
-        semantic = self._semantic.lookup(request, PROMPT_VERSION)
+        semantic = self._semantic.lookup(request, prompt_version)
         if semantic.answer is not None:
             return semantic.answer.text
 
-        system, user = render_estimation_prompt(request)
+        system, user = render_estimation_prompt(request, prompt_version)
         text = self._provider.complete(system, user)
-        if self._passes_output_check(request, text):
+        if self._passes_output_check(request, text, prompt_version):
             self._store(key, semantic, CachedAnswer(text=text))
         return text
 
@@ -79,13 +79,14 @@ class EstimationService:
         self,
         request: EstimationRequest,
         metrics: GenerationMetrics | None = None,
+        prompt_version: str = PROMPT_VERSION,
     ) -> Iterator[str]:
         started_at = perf_counter()
-        key = make_cache_key(request, PROMPT_VERSION, self._cache_models)
+        key = make_cache_key(request, prompt_version, self._cache_models)
         cached = self._cache.get(key)
         semantic = SemanticLookup(bucket="")
         if cached is None:
-            semantic = self._semantic.lookup(request, PROMPT_VERSION)
+            semantic = self._semantic.lookup(request, prompt_version)
             cached = semantic.answer
         if cached is not None:
             if metrics is not None:
@@ -96,7 +97,7 @@ class EstimationService:
             yield from cached.text.splitlines(keepends=True)
             return
 
-        system, user = render_estimation_prompt(request)
+        system, user = render_estimation_prompt(request, prompt_version)
         chunks: list[str] = []
         for chunk in self._provider.stream(system, user, metrics=metrics):
             chunks.append(chunk)
@@ -104,7 +105,7 @@ class EstimationService:
         # Reached only when the stream completed (an error or a client disconnect skips it), so a
         # broken stream is never checked nor cached.
         text = "".join(chunks)
-        if self._passes_output_check(request, text):
+        if self._passes_output_check(request, text, prompt_version):
             self._store(key, semantic, CachedAnswer(text=text, model=metrics.model if metrics else None))
 
     def _store(self, key: str, semantic: SemanticLookup, answer: CachedAnswer) -> None:
@@ -112,7 +113,7 @@ class EstimationService:
         self._semantic.store(semantic, answer)  # reuses the vector embedded by the lookup
 
     @staticmethod
-    def _passes_output_check(request: EstimationRequest, text: str) -> bool:
+    def _passes_output_check(request: EstimationRequest, text: str, prompt_version: str) -> bool:
         """Logs a structured warning when the answer breaks the format; such answers are not cacheable."""
         check = check_estimation_output(text, request.language)
         if not check.passed:
@@ -120,7 +121,7 @@ class EstimationService:
                 "output_check_failed",
                 reason=check.reason,
                 language=request.language.value,
-                prompt_version=PROMPT_VERSION,
+                prompt_version=prompt_version,
                 output_chars=len(text),
             )
         return check.passed

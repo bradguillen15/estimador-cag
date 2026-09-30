@@ -7,6 +7,8 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.exceptions import LLMProviderError, PromptTemplateError
+from app.prompts.loader import render_estimation_prompt
+from app.schemas.estimations import EstimationRequest
 from app.services.estimation_service import PROMPT_VERSION
 from tests.conftest import VALID_REQUEST, FakeProvider
 
@@ -203,3 +205,51 @@ def test_pii_is_redacted_before_it_reaches_the_provider(
     _, user_prompt = fake_provider.calls[0]
     assert "[EMAIL]" in user_prompt and "[PHONE]" in user_prompt
     assert "ana@empresa.com" not in user_prompt and "600 123 456" not in user_prompt
+
+
+# --- ?prompt_version= ---------------------------------------------------------------------------
+
+
+def test_prompt_version_defaults_to_the_active_one(client: TestClient) -> None:
+    assert client.post("/api/v1/estimate", json=VALID_REQUEST).json()["prompt_version"] == "v3"
+
+
+@pytest.mark.parametrize("version", ["v1", "v2"])
+def test_prompt_version_param_renders_and_reports_that_version(
+    client: TestClient, fake_provider: FakeProvider, version: str
+) -> None:
+    response = client.post(f"/api/v1/estimate?prompt_version={version}", json=VALID_REQUEST)
+
+    assert response.status_code == 200
+    assert response.json()["prompt_version"] == version
+    assert fake_provider.calls == [render_estimation_prompt(EstimationRequest.model_validate(VALID_REQUEST), version)]
+
+
+@pytest.mark.parametrize("path", ["/api/v1/estimate", "/api/v1/estimate/stream"])
+@pytest.mark.parametrize("version", ["v9", "../x", "", "v1/../v2"])
+def test_invalid_prompt_version_is_422_without_calling_the_provider(
+    client: TestClient, fake_provider: FakeProvider, path: str, version: str
+) -> None:
+    response = client.post(path, params={"prompt_version": version}, json=VALID_REQUEST)
+
+    assert response.status_code == 422
+    assert "prompt" in response.json()["detail"].lower()
+    assert fake_provider.calls == []
+
+
+def test_invalid_prompt_version_on_context_is_422(client: TestClient) -> None:
+    assert client.get("/api/v1/context", params={"prompt_version": "nope"}).status_code == 422
+
+
+def test_context_and_stream_report_the_requested_version(client: TestClient) -> None:
+    assert client.get("/api/v1/context?prompt_version=v1").json()["prompt_version"] == "v1"
+    with client.stream("POST", "/api/v1/estimate/stream?prompt_version=v2", json=VALID_REQUEST) as response:
+        events = _sse_events("".join(response.iter_text()))
+    assert [payload["prompt_version"] for name, payload in events if name == "done"] == ["v2"]
+
+
+def test_cache_is_scoped_by_prompt_version(client: TestClient, fake_provider: FakeProvider) -> None:
+    client.post("/api/v1/estimate?prompt_version=v2", json=VALID_REQUEST)
+    client.post("/api/v1/estimate?prompt_version=v3", json=VALID_REQUEST)
+
+    assert len(fake_provider.calls) == 2

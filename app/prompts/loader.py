@@ -17,6 +17,12 @@ PROMPT_VERSION = "v3"
 
 
 @lru_cache
+def available_prompt_versions() -> tuple[str, ...]:
+    """Versions discovered from the folders under ``estimation/`` (computed once)."""
+    return tuple(sorted(p.name for p in (_PROMPTS_ROOT / "estimation").iterdir() if p.is_dir()))
+
+
+@lru_cache
 def _environment(version: str) -> Environment:
     version_dir = _PROMPTS_ROOT / "estimation" / version
     if not version_dir.is_dir():

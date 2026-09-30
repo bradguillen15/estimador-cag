@@ -151,9 +151,9 @@ Small open-source repos are limited to about one CodeRabbit review per hour.
 | Method | Path | Response |
 |--------|------|----------|
 | `GET` | `/health` | `{"status": "ok"}` |
-| `POST` | `/api/v1/estimate` | `EstimationResponse` (`text`, `prompt_version`) |
-| `POST` | `/api/v1/estimate/stream` | SSE events: `token`, `done` (model, tokens, latency, `cache_hit`, `prompt_version`), `error` |
-| `GET` | `/api/v1/context` | `PromptContextResponse` (`prompt_version`, `examples_markdown`) |
+| `POST` | `/api/v1/estimate[?prompt_version=v2]` | `EstimationResponse` (`text`, `prompt_version`) |
+| `POST` | `/api/v1/estimate/stream[?prompt_version=v2]` | SSE events: `token`, `done` (model, tokens, latency, `cache_hit`, `prompt_version`), `error` |
+| `GET` | `/api/v1/context[?prompt_version=v2]` | `PromptContextResponse` (`prompt_version`, `examples_markdown`) |
 
 ```bash
 curl -X POST http://127.0.0.1:8000/api/v1/estimate \
@@ -186,6 +186,17 @@ chosen detail level and output format) and `language.j2` (the response language)
 description only goes in `user.j2`. `v3` adds a confidence line to the closing block, an
 items-first-then-sum rule, discovery and deployment work, and a rule against inventing dates or
 stakeholders.
+
+### Prompt versions
+
+All three endpoints accept an optional `?prompt_version=<vN>` query parameter to run a specific
+prompt version side by side (for example `v1` vs `v3`). Without it the active `PROMPT_VERSION` is
+used. The allowed values are the folders under `app/prompts/estimation/`; anything else (including
+path-like values such as `../x`) is rejected with **422** before any guardrail, cache or LLM work,
+and before a stream starts. The effective version is part of the exact and semantic cache keys and
+is echoed back as `prompt_version` (response body and SSE `done` event). `v1` predates the
+`language` field, so the response language does not apply to it (it always answers in Spanish); the
+output check may flag `v1`/`v2` answers, which only means they are not cached.
 
 ## Project structure
 
