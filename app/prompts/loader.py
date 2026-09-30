@@ -13,7 +13,7 @@ from app.schemas.estimations import EstimationRequest
 _PROMPTS_ROOT = Path(__file__).resolve().parent
 
 # Active prompt version: the folder under estimation/ that requests are rendered with.
-PROMPT_VERSION = "v2"
+PROMPT_VERSION = "v3"
 
 
 @lru_cache

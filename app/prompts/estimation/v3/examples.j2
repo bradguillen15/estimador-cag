@@ -1,0 +1,106 @@
+### Example 1 — B2B auto-parts marketplace
+**Parameters:** web SaaS · detailed · line items
+
+**Description:** Web portal where mechanic workshops order auto parts from distributors, with a
+catalog, quotes, a B2B cart, roles (buyer/seller/admin) and email notifications. Integration
+with the distributor's ERP via API.
+
+**Generated estimate:**
+
+## Estimate: B2B auto-parts marketplace
+
+### Assumptions
+- **Design:** responsive web portal; no native mobile app
+- **Catalog and quotes:** a single tenant (one distributor) in the MVP
+- **Cart and orders:** orders are paid offline; no payment gateway
+- **Authentication:** email/password; no SSO
+- **ERP integration:** the ERP exposes documented REST endpoints
+
+### Task breakdown
+1. Discovery and kick-off: 8 hours
+2. UI/UX design: 36 hours
+3. Catalog and quotes backend: 32 hours
+4. Cart and orders backend: 24 hours
+5. Portal frontend (buyer + admin): 48 hours
+6. Authentication and roles: 16 hours
+7. ERP integration: 24 hours
+8. Email notifications: 12 hours
+9. Testing and QA: 28 hours
+10. Deployment and launch (environments, CI/CD, release): 12 hours
+
+### Risks and out of scope
+- Quality and availability of the ERP API
+- Multi-distributor support and SSO are out of scope for the MVP
+- Native mobile app is out of scope
+
+**Total estimate: 240 hours**
+**Recommended team: 1 backend + 1 frontend + 1 part-time UX + 1 part-time QA (≈3 FTE)**
+**Estimated duration: 3-4 weeks**
+**Confidence: high — clear scope, well-documented ERP API, close to similar past projects**
+
+---
+
+### Example 2 — Workout tracking app
+**Parameters:** mobile app · medium detail · table by phases
+
+**Description:** Mobile app (iOS/Android) to log workouts, weekly plans, progress and push
+reminders. Own backend and a minimal web panel for the coach.
+
+**Generated estimate:**
+
+## Estimate: Workout app
+
+### Assumptions
+- A single cross-platform codebase (React Native or Flutter)
+- Push via FCM/APNs
+- The coach panel is a basic CRUD, with no advanced analytics
+
+| Phase | Tasks | Hours |
+|---|---|---|
+| Design | UI/UX for the app and the panel | 40 |
+| Mobile app | Auth, plans, workout tracking, push notifications | 88 |
+| Backend and panel | API, persistence, coach web panel | 80 |
+| QA and release | Testing, store publishing | 24 |
+
+### Risks
+- App store review can delay the launch
+- Wearables / Apple Health integration is out of scope
+
+**Total estimate: 232 hours**
+**Recommended team: 1 mobile + 1 full-stack + 1 part-time UX (≈2.25 FTE)**
+**Estimated duration: 4-5 weeks**
+**Confidence: medium — cross-platform framework and push providers are assumed, not confirmed**
+
+---
+
+### Example 3 — Lead sync pipeline
+**Parameters:** data pipeline · summary · narrative
+
+**Description:** Scheduled job that extracts leads from a CRM, cleans/normalizes them and loads
+them into a data warehouse, with failure alerts and a simple runs dashboard.
+
+**Generated estimate:**
+
+## Estimate: CRM → warehouse lead pipeline
+
+### Scope
+Periodic sync of leads from a single CRM into the existing warehouse, with failure alerts and
+basic visibility of each run. We assume the CRM has a stable API and the warehouse is already
+provisioned.
+
+### Approach and effort
+Extraction with retries and the data model design add up to 44 hours. Transformation and
+loading into the warehouse, 24 hours. Orchestration, alerts and the runs dashboard, 36 hours.
+We reserve 16 hours for testing and QA.
+
+### Team and timeline
+One full-time data/backend profile owns the pipeline, supported by a half-time frontend for the
+dashboard.
+
+### Risks
+CRM rate limits or schema changes; lead scoring is out of scope.
+
+**Total estimate: 120 hours**
+**Recommended team: 1 data/backend + 1 part-time frontend (≈1.5 FTE)**
+**Estimated duration: 3-4 weeks**
+**Confidence: medium — CRM API limits and warehouse readiness are assumed**

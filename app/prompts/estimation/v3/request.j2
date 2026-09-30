@@ -1,0 +1,32 @@
+{#- Per-request instructions: only the selected detail level and output format. -#}
+## This request
+{% if detail_level == "summary" %}
+- Detail level `summary`: 3-5 high-level items, at most 3 assumptions and a one-line risks note.
+{% elif detail_level == "medium" %}
+- Detail level `medium`: 5-8 items by main area (design, backend, frontend, integrations, QA…),
+  key assumptions and main risks.
+{% else %}
+- Detail level `detailed`: 8 or more concrete items, explicit assumptions and a full section of
+  risks and out-of-scope items.
+{% endif %}
+{% if output_format == "line_items" %}
+- Output format `line_items`: numbered list of items following the pattern `N. Task: X hours`.
+{% elif output_format == "phases_table" and detail_level == "detailed" %}
+- Output format `phases_table`: Markdown table with columns `Phase | Tasks | Assumptions | Hours`,
+  one row per phase.
+{% elif output_format == "phases_table" %}
+- Output format `phases_table`: Markdown table with columns `Phase | Tasks | Hours`, one row per
+  phase.
+{% else %}
+- Output format `narrative`: prose in short paragraphs under Markdown sections (scope, approach
+  and effort, team and timeline, risks), stating the hours of each block of work.
+{% endif %}
+{% if detail_level == "detailed" %}
+{% if output_format == "phases_table" %}
+- List the assumptions per phase (required at this detail level): write each phase's assumptions in
+  its `Assumptions` cell; keep a separate section only for assumptions that apply to the whole project.
+{% else %}
+- List the assumptions per phase (required at this detail level): in the assumptions section, group
+  them by phase or work area (`- **<phase>:** <assumption>`) instead of one flat list.
+{% endif %}
+{% endif %}
