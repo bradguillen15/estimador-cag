@@ -3,6 +3,8 @@
 from types import SimpleNamespace
 from typing import Any
 
+import litellm
+import openai
 import pytest
 
 from app.config import Settings
@@ -26,7 +28,43 @@ def test_returns_the_flagged_categories() -> None:
     moderator = LiteLLMModerator(api_key="k", moderation=fake_moderation)
 
     assert moderator.flagged_categories("texto") == ["sexual", "violence"]
+    assert len(calls) == 1
+    client = calls[0].pop("client")
     assert calls == [{"input": "texto", "model": "omni-moderation-latest", "api_key": "k"}]
+    assert isinstance(client, openai.OpenAI)
+
+
+def test_the_moderation_client_carries_the_configured_timeout_and_retries() -> None:
+    calls: list[dict[str, Any]] = []
+
+    def fake_moderation(**kwargs: Any) -> SimpleNamespace:
+        calls.append(kwargs)
+        return _response({"flagged": False})
+
+    LiteLLMModerator(api_key="k", moderation=fake_moderation, timeout=7, retries=1).flagged_categories("x")
+
+    client = calls[0]["client"]
+    assert (client.timeout, client.max_retries) == (7, 1)
+
+
+def test_the_default_moderation_path_passes_the_bounded_client_to_litellm(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls: list[dict[str, Any]] = []
+    monkeypatch.setattr(litellm, "moderation", lambda **kw: calls.append(kw) or _response({"flagged": False}))
+
+    LiteLLMModerator(api_key="k", timeout=5).flagged_categories("x")
+
+    assert calls[0]["client"].timeout == 5
+
+
+def test_factory_passes_the_llm_timeout_and_retries_to_the_moderator() -> None:
+    settings = Settings(
+        app_env="t", log_level="INFO", moderation_enabled=True, openai_api_key="k", llm_timeout=11, llm_retries=1
+    )
+    moderator = get_moderator(settings)
+    assert isinstance(moderator, LiteLLMModerator)
+    assert (moderator._client.timeout, moderator._client.max_retries) == (11, 1)
 
 
 def test_clean_text_has_no_categories() -> None:

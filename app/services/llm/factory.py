@@ -50,7 +50,11 @@ def get_moderator(settings: Settings) -> ModerationProvider | None:
     """The moderation backend, or ``None`` when ``MODERATION_ENABLED`` is off."""
     if not settings.moderation_enabled:
         return None
-    return LiteLLMModerator(api_key=_require_key("OPENAI_API_KEY", settings.openai_api_key))
+    return LiteLLMModerator(
+        api_key=_require_key("OPENAI_API_KEY", settings.openai_api_key),
+        timeout=settings.llm_timeout,
+        retries=settings.llm_retries,
+    )
 
 
 def get_embedder(settings: Settings) -> EmbeddingProvider:
