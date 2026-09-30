@@ -32,7 +32,8 @@
 ## Tasks
 - [x] T1 — prompt_version query param + validation + cache/response wiring + tests + README/AGENTS.
       Commit `feat(api): ...` (route: delegated writer; trigger: 2+ non-trivial files)
-- [ ] T2 — UI defaults English/dark + option order + tests. Commit `feat(web): ...` (same writer)
+- [x] T2 — UI defaults English/dark + option order + tests. Commit `feat(web): ...` (same writer)
+- [x] T3 — sidebar brand badge: ruler icon replaces the "E" letter. Commit `feat(web): ...`
 
 ## Acceptance criteria
 - `POST /api/v1/estimate?prompt_version=v2` renders v2 and returns `prompt_version: "v2"`; no param → v3.
@@ -44,3 +45,4 @@
 
 ## Progress
 - 2026-09-30: document created.
+- 2026-09-30: T1 done in b66ac2d; T2 in 6206181; T3 in 4297daf (pytest, test:web, lint, build green). No favicon exists in web/ (nothing to update).
