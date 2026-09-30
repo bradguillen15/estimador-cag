@@ -19,7 +19,7 @@ function readStoredLanguage(): ResponseLanguage {
 
 /**
  * UI locale and model response language (same toggle).
- * Spanish by default; persisted across reloads.
+ * English by default; persisted across reloads.
  */
 export function useResponseLanguage(): [ResponseLanguage, (language: ResponseLanguage) => void] {
   const [language, setLanguage] = useState<ResponseLanguage>(readStoredLanguage)

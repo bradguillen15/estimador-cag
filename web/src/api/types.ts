@@ -48,7 +48,8 @@ export type StreamEvent =
 export const DESCRIPTION_MIN = 20
 export const DESCRIPTION_MAX = 20000
 
-export const DEFAULT_RESPONSE_LANGUAGE: ResponseLanguage = 'es'
+/** UI default: English. The API's own default stays 'es' for other clients, so the UI always sends `language`. */
+export const DEFAULT_RESPONSE_LANGUAGE: ResponseLanguage = 'en'
 
 /** Supported UI + model response languages. Labels live in i18n. */
 export const RESPONSE_LANGUAGES: readonly ResponseLanguage[] = ['es', 'en']

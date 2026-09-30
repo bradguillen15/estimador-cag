@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="es">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -11,12 +11,12 @@
       rel="stylesheet"
     />
     <script>
-      // Apply theme + locale before first paint (defaults: dark, Spanish).
+      // Apply theme + locale before first paint (defaults: dark, English).
       var theme = 'dark'
-      var lang = 'es'
+      var lang = 'en'
       try {
         if (localStorage.getItem('theme') === 'light') theme = 'light'
-        if (localStorage.getItem('response-language') === 'en') lang = 'en'
+        if (localStorage.getItem('response-language') === 'es') lang = 'es'
       } catch {}
       document.documentElement.dataset.theme = theme
       document.documentElement.lang = lang

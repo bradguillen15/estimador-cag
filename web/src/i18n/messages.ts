@@ -174,7 +174,7 @@ export function outputFormatOptions(locale: Locale): { value: OutputFormat; labe
 
 export function languageOptions(locale: Locale): { value: ResponseLanguage; label: string }[] {
   return [
-    { value: 'es', label: translate(locale, 'language.es') },
     { value: 'en', label: translate(locale, 'language.en') },
+    { value: 'es', label: translate(locale, 'language.es') },
   ]
 }

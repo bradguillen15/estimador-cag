@@ -17,6 +17,8 @@ vi.mock('./api/client', async (importOriginal) => ({
 const DESCRIPTION = 'App móvil para reservar clases en un gimnasio.'
 
 beforeEach(() => {
+  // The app defaults to English; most tests here assert the Spanish copy, so start from a saved 'es'.
+  localStorage.setItem('response-language', 'es')
   vi.mocked(checkHealth).mockResolvedValue(true)
   vi.mocked(getPromptContext).mockResolvedValue({ prompt_version: 'v1', examples_markdown: '' })
 })
@@ -54,7 +56,7 @@ describe('App', () => {
     expect(createEstimate).not.toHaveBeenCalled()
   })
 
-  it('sends Spanish by default and the newly selected language on the next request', async () => {
+  it('sends the saved language and the newly selected language on the next request', async () => {
     vi.mocked(createEstimate).mockResolvedValue({ text: '## Estimación: Gimnasio', prompt_version: 'v2' })
     const user = await fillForm()
 
@@ -63,6 +65,22 @@ describe('App', () => {
     expect(createEstimate).toHaveBeenLastCalledWith(expect.objectContaining({ language: 'es' }), expect.any(AbortSignal))
 
     await user.click(screen.getByRole('radio', { name: /English/ }))
+    await user.click(screen.getByRole('button', { name: 'Generate estimate' }))
+    expect(createEstimate).toHaveBeenLastCalledWith(expect.objectContaining({ language: 'en' }), expect.any(AbortSignal))
+  })
+
+  it('starts in English and dark with a fresh browser (no saved preferences)', async () => {
+    localStorage.clear()
+    vi.mocked(createEstimate).mockResolvedValue({ text: '## Estimate: Gym', prompt_version: 'v3' })
+    const user = userEvent.setup()
+    render(<App />)
+
+    expect(screen.getByRole('radio', { name: /English/ })).toBeChecked()
+    expect(screen.getByRole('radio', { name: 'Dark' })).toBeChecked()
+    expect(document.documentElement.lang).toBe('en')
+    expect(document.documentElement.dataset.theme).toBe('dark')
+
+    await user.type(screen.getByLabelText(/project description/i), DESCRIPTION)
     await user.click(screen.getByRole('button', { name: 'Generate estimate' }))
     expect(createEstimate).toHaveBeenLastCalledWith(expect.objectContaining({ language: 'en' }), expect.any(AbortSignal))
   })
