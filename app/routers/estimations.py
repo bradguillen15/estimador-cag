@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, Request
 from fastapi.sse import EventSourceResponse, ServerSentEvent
 from starlette.concurrency import iterate_in_threadpool
 
-from app.dependencies import get_estimation_service
+from app.dependencies import get_estimation_service, get_safe_request
 from app.exceptions import EstimationError
 from app.schemas.estimations import (
     EstimationRequest,
@@ -21,6 +21,8 @@ logger = structlog.get_logger()
 router = APIRouter(tags=["estimations"])
 
 Service = Annotated[EstimationService, Depends(get_estimation_service)]
+# The request after the input guardrails (a rejection is an HTTP 400 before any handler runs).
+SafeRequest = Annotated[EstimationRequest, Depends(get_safe_request)]
 
 _UNEXPECTED_STREAM_ERROR = "Error inesperado al generar la estimación."
 
@@ -35,14 +37,14 @@ def get_prompt_context(service: Service) -> PromptContextResponse:
 
 # Domain errors are mapped to HTTP status codes by the exception handlers in main.py.
 @router.post("/estimate", response_model=EstimationResponse)
-def create_estimate(body: EstimationRequest, service: Service) -> EstimationResponse:
+def create_estimate(body: SafeRequest, service: Service) -> EstimationResponse:
     text = service.generate(body)
     return EstimationResponse(text=text, prompt_version=PROMPT_VERSION)
 
 
 @router.post("/estimate/stream", response_class=EventSourceResponse)
 async def create_estimate_stream(
-    body: EstimationRequest,
+    body: SafeRequest,
     request: Request,
     service: Service,
 ) -> AsyncIterator[ServerSentEvent]:

@@ -35,3 +35,9 @@ class StreamingLLMProvider(LLMProvider, Protocol):
         user_prompt: str,
         metrics: GenerationMetrics | None = None,
     ) -> Iterator[str]: ...
+
+
+class ModerationProvider(Protocol):
+    """Content moderation: returns the flagged category names (empty list = allowed)."""
+
+    def flagged_categories(self, text: str) -> list[str]: ...

@@ -49,7 +49,7 @@ Structured JSON output (Instructor) — our contract stays Markdown over SSE. No
 ## Tasks
 - [x] T1 — Prompt v3 (confidence line, items-then-sum algorithm, discovery/deploy phases, no invented
       deadlines/stakeholders) + examples + PROMPT_VERSION + tests. Commit `feat(prompts): ...`
-- [ ] T2 — Input guardrails (injection es/en reject → 400, PII redaction, moderation via LiteLLM) wired
+- [x] T2 — Input guardrails (injection es/en reject → 400, PII redaction, moderation via LiteLLM) wired
       into service for `/estimate` and `/estimate/stream` + tests. Commit `feat(guardrails): ...`
 - [ ] T3 — Output check (log + mark not cacheable) + tests. Commit `feat(guardrails): ...`
 - [ ] T4 — Exact Redis response cache (hit replays over SSE, store after successful stream) + settings
@@ -74,4 +74,5 @@ T7 diagram by the parent with the archify skill.
 
 ## Progress
 - 2026-09-30: comparison done, scope accepted by the user; document created.
-- 2026-09-30: T1 done (prompt v3, PROMPT_VERSION bump, examples + tests); commit hash recorded in the next task's update.
+- 2026-09-30: T1 done: 7ba7290 feat(prompts): add v3 ... (prompt v3, PROMPT_VERSION bump, examples + tests).
+- 2026-09-30: T2 done (input guardrails: injection es/en -> 400, PII redaction, LiteLLM moderation behind a Protocol; wired via the `get_safe_request` dependency so the stream is rejected before it starts). Hash recorded in the next update. `.env.example` write is denied by permissions: line `MODERATION_ENABLED=false` reported to the parent.

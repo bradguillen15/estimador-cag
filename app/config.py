@@ -23,6 +23,8 @@ class Settings(BaseSettings):
     llm_timeout: float = 30
     llm_retries: int = 2
     llm_max_tokens: int = 16000
+    # Input moderation (OpenAI moderation endpoint via LiteLLM). Needs OPENAI_API_KEY; fails open.
+    moderation_enabled: bool = False
     app_env: str
     log_level: str
 

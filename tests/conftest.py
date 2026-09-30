@@ -34,12 +34,14 @@ VALID_REQUEST: dict[str, str] = {
 
 @pytest.fixture(autouse=True)
 def _forbid_real_llm_calls(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Safety net: any code path that reaches the real LiteLLM completion fails the test."""
+    """Safety net: any code path that reaches real LiteLLM completion/moderation/embedding fails."""
 
     def _blocked(*_args: object, **_kwargs: object) -> None:
         raise AssertionError("A test tried to call a real LLM API")
 
     monkeypatch.setattr(litellm, "completion", _blocked)
+    monkeypatch.setattr(litellm, "moderation", _blocked)
+    monkeypatch.setattr(litellm, "embedding", _blocked)
 
 
 class FakeProvider:

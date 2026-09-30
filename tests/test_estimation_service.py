@@ -41,3 +41,14 @@ def test_exposes_provider_identity_and_cag_examples() -> None:
     assert (service.provider_name, service.model) == ("fake", "fake-model")
     assert service.context_examples() == render_estimation_examples(PROMPT_VERSION)
 
+
+
+def test_prepare_returns_a_copy_with_the_sanitized_description() -> None:
+    service = EstimationService(FakeProvider())
+    request = REQUEST.model_copy(update={"description": "Portal de reservas, avisar a ana@empresa.com siempre."})
+
+    prepared = service.prepare(request)
+
+    assert prepared.description == "Portal de reservas, avisar a [EMAIL] siempre."
+    assert "ana@empresa.com" in request.description  # the original is untouched
+    assert prepared.project_type == request.project_type

@@ -7,7 +7,7 @@ from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 
-from app.exceptions import LLMProviderError, PromptTemplateError
+from app.exceptions import InputRejectedError, LLMProviderError, PromptTemplateError
 from app.logging_config import configure_logging
 from app.routers import estimations
 
@@ -50,6 +50,11 @@ app.include_router(estimations.router, prefix="/api/v1")
 @app.exception_handler(PromptTemplateError)
 async def _prompt_template_error(_: Request, exc: PromptTemplateError) -> JSONResponse:
     return JSONResponse(status_code=500, content={"detail": str(exc)})
+
+
+@app.exception_handler(InputRejectedError)
+async def _input_rejected_error(_: Request, exc: InputRejectedError) -> JSONResponse:
+    return JSONResponse(status_code=400, content={"detail": str(exc)})
 
 
 @app.exception_handler(LLMProviderError)

@@ -1,8 +1,9 @@
 """Builds the LLM provider (LiteLLM) from the ``LLM_MODELS`` setting."""
 
 from app.config import Settings
-from app.services.llm.base import StreamingLLMProvider
+from app.services.llm.base import ModerationProvider, StreamingLLMProvider
 from app.services.llm.litellm import LiteLLMProvider
+from app.services.llm.moderation import LiteLLMModerator
 
 
 def _require_key(name: str, value: str | None) -> str:
@@ -38,3 +39,10 @@ def get_llm_provider(settings: Settings) -> StreamingLLMProvider:
         retries=settings.llm_retries,
         max_tokens=settings.llm_max_tokens,
     )
+
+
+def get_moderator(settings: Settings) -> ModerationProvider | None:
+    """The moderation backend, or ``None`` when ``MODERATION_ENABLED`` is off."""
+    if not settings.moderation_enabled:
+        return None
+    return LiteLLMModerator(api_key=_require_key("OPENAI_API_KEY", settings.openai_api_key))
