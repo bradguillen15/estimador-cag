@@ -85,3 +85,4 @@ T7 diagram by the parent with the archify skill.
 - 2026-09-30: verification fixes (C): README and AGENTS.md updated (settings, guardrails, cache, v3, layer map, rules, known debt #7). Diagram and `.env.example` left to the parent.
 - 2026-09-30: diagram 9a76f1d (archify finalize: validate/deliver/check/browser-check passed; visual review not done, advisory 3-bend routes guard→mod, semantic→embedder). T7 open only for `.env.example` (agent writes denied; user applies).
 - 2026-09-30: T7 closed — `.env.example` lines added by the user, committed with this document.
+- 2026-09-30: CodeRabbit review fixes: 505ab90 (optional moderation/semantic-cache config errors degrade), 3b96b6b (v3 medium example 5-8 rows), 1d4f38d (close provider streams on every exit), b4c832d (moderation timeout via bounded OpenAI client), cc9c5af (diagram sources refreshed + 422 mapping).
