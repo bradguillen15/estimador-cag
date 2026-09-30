@@ -1,7 +1,8 @@
 """Builds the LLM provider (LiteLLM) from the ``LLM_MODELS`` setting."""
 
 from app.config import Settings
-from app.services.llm.base import ModerationProvider, StreamingLLMProvider
+from app.services.llm.base import EmbeddingProvider, ModerationProvider, StreamingLLMProvider
+from app.services.llm.embeddings import LiteLLMEmbedder
 from app.services.llm.litellm import LiteLLMProvider
 from app.services.llm.moderation import LiteLLMModerator
 
@@ -13,11 +14,15 @@ def _require_key(name: str, value: str | None) -> str:
     return value
 
 
-def get_llm_provider(settings: Settings) -> StreamingLLMProvider:
-    key_by_prefix = {
+def _key_by_prefix(settings: Settings) -> dict[str, tuple[str, str | None]]:
+    return {
         "anthropic": ("ANTHROPIC_API_KEY", settings.anthropic_api_key),
         "openai": ("OPENAI_API_KEY", settings.openai_api_key),
     }
+
+
+def get_llm_provider(settings: Settings) -> StreamingLLMProvider:
+    key_by_prefix = _key_by_prefix(settings)
     if not settings.llm_models:
         raise ValueError("LLM_MODELS must list at least one '<provider>/<model>' entry.")
 
@@ -46,3 +51,16 @@ def get_moderator(settings: Settings) -> ModerationProvider | None:
     if not settings.moderation_enabled:
         return None
     return LiteLLMModerator(api_key=_require_key("OPENAI_API_KEY", settings.openai_api_key))
+
+
+def get_embedder(settings: Settings) -> EmbeddingProvider:
+    """Embeddings for the semantic cache: ``EMBEDDING_MODEL`` is a '<provider>/<model>' entry."""
+    key_by_prefix = _key_by_prefix(settings)
+    prefix = settings.embedding_model.split("/", 1)[0]
+    if "/" not in settings.embedding_model or prefix not in key_by_prefix:
+        raise ValueError(
+            f"Unsupported EMBEDDING_MODEL: {settings.embedding_model!r}. "
+            f"Use '<provider>/<model>' with a provider in: {', '.join(sorted(key_by_prefix))}"
+        )
+    env_name, key = key_by_prefix[prefix]
+    return LiteLLMEmbedder(model=settings.embedding_model, api_key=_require_key(env_name, key))

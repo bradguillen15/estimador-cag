@@ -29,6 +29,14 @@ class Settings(BaseSettings):
     cache_enabled: bool = False
     redis_url: str = "redis://localhost:6379/0"
     cache_ttl: int = 86400
+    # Semantic cache (redisvl on Redis Stack + LiteLLM embeddings). LOG_ONLY logs would-be hits
+    # without serving them, to calibrate THRESHOLD before turning it on.
+    semantic_cache_enabled: bool = False
+    semantic_cache_log_only: bool = True
+    semantic_cache_threshold: float = 0.92
+    semantic_cache_ttl: int = 86400
+    embedding_model: str = "openai/text-embedding-3-small"
+    embedding_dims: int = 1536
     app_env: str
     log_level: str
 

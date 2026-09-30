@@ -1,7 +1,7 @@
 """Estimation use case.
 
-Pipeline (input guardrails run earlier, in ``prepare``): exact cache -> LLM -> output check ->
-store. Only answers that completed and passed the output check are cached.
+Pipeline (input guardrails run earlier, in ``prepare``): exact cache -> semantic cache -> LLM ->
+output check -> store. Only answers that completed and passed the output check are cached.
 """
 
 from collections.abc import Iterator, Sequence
@@ -12,6 +12,7 @@ import structlog
 from app.prompts.loader import PROMPT_VERSION, render_estimation_examples, render_estimation_prompt
 from app.schemas.estimations import EstimationRequest
 from app.services.cache.base import CachedAnswer, NoOpCache, ResponseCache, make_cache_key
+from app.services.cache.semantic import NoOpSemanticCache, SemanticCache, SemanticLookup
 from app.services.guardrails.input import InputGuardrails
 from app.services.guardrails.output import check_estimation_output
 from app.services.llm.base import GenerationMetrics, StreamingLLMProvider
@@ -28,10 +29,12 @@ class EstimationService:
         guardrails: InputGuardrails | None = None,
         cache: ResponseCache | None = None,
         cache_models: Sequence[str] | None = None,
+        semantic_cache: SemanticCache | None = None,
     ) -> None:
         self._provider = provider
         self._guardrails = guardrails or InputGuardrails()
         self._cache = cache if cache is not None else NoOpCache()
+        self._semantic = semantic_cache if semantic_cache is not None else NoOpSemanticCache()
         # Part of the cache key: changing the configured model list must not serve old answers.
         self._cache_models = tuple(cache_models) if cache_models else (provider.model,)
 
@@ -62,10 +65,14 @@ class EstimationService:
         if cached is not None:
             return cached.text
 
+        semantic = self._semantic.lookup(request, PROMPT_VERSION)
+        if semantic.answer is not None:
+            return semantic.answer.text
+
         system, user = render_estimation_prompt(request)
         text = self._provider.complete(system, user)
         if self._passes_output_check(request, text):
-            self._cache.set(key, CachedAnswer(text=text))
+            self._store(key, semantic, CachedAnswer(text=text))
         return text
 
     def generate_stream(
@@ -76,6 +83,10 @@ class EstimationService:
         started_at = perf_counter()
         key = make_cache_key(request, PROMPT_VERSION, self._cache_models)
         cached = self._cache.get(key)
+        semantic = SemanticLookup(bucket="")
+        if cached is None:
+            semantic = self._semantic.lookup(request, PROMPT_VERSION)
+            cached = semantic.answer
         if cached is not None:
             if metrics is not None:
                 metrics.cache_hit = True
@@ -94,7 +105,11 @@ class EstimationService:
         # broken stream is never checked nor cached.
         text = "".join(chunks)
         if self._passes_output_check(request, text):
-            self._cache.set(key, CachedAnswer(text=text, model=metrics.model if metrics else None))
+            self._store(key, semantic, CachedAnswer(text=text, model=metrics.model if metrics else None))
+
+    def _store(self, key: str, semantic: SemanticLookup, answer: CachedAnswer) -> None:
+        self._cache.set(key, answer)
+        self._semantic.store(semantic, answer)  # reuses the vector embedded by the lookup
 
     @staticmethod
     def _passes_output_check(request: EstimationRequest, text: str) -> bool:

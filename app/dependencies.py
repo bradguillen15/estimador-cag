@@ -8,9 +8,16 @@ from fastapi import Depends
 from app.config import settings
 from app.schemas.estimations import EstimationRequest
 from app.services.cache.factory import get_response_cache
+from app.services.cache.semantic import NoOpSemanticCache, SemanticCache, build_semantic_cache
 from app.services.estimation_service import EstimationService
 from app.services.guardrails.input import InputGuardrails
-from app.services.llm.factory import get_llm_provider, get_moderator
+from app.services.llm.factory import get_embedder, get_llm_provider, get_moderator
+
+
+def _get_semantic_cache() -> SemanticCache:
+    if not settings.semantic_cache_enabled:
+        return NoOpSemanticCache()
+    return build_semantic_cache(settings, get_embedder(settings))
 
 
 @lru_cache
@@ -19,6 +26,7 @@ def get_estimation_service() -> EstimationService:
         provider=get_llm_provider(settings),
         guardrails=InputGuardrails(moderator=get_moderator(settings)),
         cache=get_response_cache(settings),
+        semantic_cache=_get_semantic_cache(),
         cache_models=tuple(settings.llm_models),
     )
 

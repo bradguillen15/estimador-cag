@@ -54,7 +54,7 @@ Structured JSON output (Instructor) — our contract stays Markdown over SSE. No
 - [x] T3 — Output check (log + mark not cacheable) + tests. Commit `feat(guardrails): ...`
 - [x] T4 — Exact Redis response cache (hit replays over SSE, store after successful stream) + settings
       + tests. Commit `feat(cache): ...`
-- [ ] T5 — Semantic cache (redisvl, log_only default, LiteLLM embeddings) + settings + tests.
+- [x] T5 — Semantic cache (redisvl, log_only default, LiteLLM embeddings) + settings + tests.
       Commit `feat(cache): ...`
 - [ ] T6 — Description limit 20000 (schema + web mirror + tests). Commit `feat(api): ...`
 - [ ] T7 — Docs: README, AGENTS.md (layer map, litellm rule, recipes), `.env.example`, architecture
@@ -77,4 +77,5 @@ T7 diagram by the parent with the archify skill.
 - 2026-09-30: T1 done: 7ba7290 feat(prompts): add v3 ... (prompt v3, PROMPT_VERSION bump, examples + tests).
 - 2026-09-30: T2 done (input guardrails: injection es/en -> 400, PII redaction, LiteLLM moderation behind a Protocol; wired via the `get_safe_request` dependency so the stream is rejected before it starts). T2 hash: 4538936 feat(guardrails): reject prompt injection... `.env.example` write is denied by permissions: line `MODERATION_ENABLED=false` reported to the parent.
 - 2026-09-30: T3 done (output check in `services/guardrails/output.py`). Commit 83feede feat(guardrails): check the answer structure...
-- 2026-09-30: T4 done (exact Redis cache in `services/cache/`; service pipeline cache -> LLM -> output check -> store; `done` event carries `cache_hit`; `.env.example` write denied, lines reported to the parent). Hash recorded in the next update.
+- 2026-09-30: T4 done (exact Redis cache in `services/cache/`; service pipeline cache -> LLM -> output check -> store; `done` event carries `cache_hit`; `.env.example` write denied, lines reported to the parent). Commit eb47836 feat(cache): serve identical requests...
+- 2026-09-30: T5 done (semantic cache in `services/cache/semantic.py`, embeddings in `services/llm/embeddings.py`; one index per embedding model; disabled + log-only by default). Hash recorded in the next update.

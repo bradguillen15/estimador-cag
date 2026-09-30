@@ -42,3 +42,9 @@ class ModerationProvider(Protocol):
     """Content moderation: returns the flagged category names (empty list = allowed)."""
 
     def flagged_categories(self, text: str) -> list[str]: ...
+
+
+class EmbeddingProvider(Protocol):
+    """Turns text into an embedding vector. Raises on any failure (callers decide to degrade)."""
+
+    def embed(self, text: str) -> list[float]: ...
