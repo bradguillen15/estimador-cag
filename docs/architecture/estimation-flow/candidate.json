@@ -9,7 +9,7 @@
     "repository": {
       "url": "git@github.com:bradguillen15/estimador-cag.git",
       "link_mode": "local-only",
-      "revision": "67c7e793f788b21fea70ede71c0af15eb2723cc5"
+      "revision": "b4c832ddb62b5479c1c82ef4ec7ff95a28772852"
     }
   },
   "components": [
@@ -58,7 +58,7 @@
         {
           "path": "web/src/api/client.ts",
           "line": 72,
-          "end_line": 83
+          "end_line": 111
         }
       ]
     },
@@ -79,13 +79,13 @@
       "sources": [
         {
           "path": "app/routers/estimations.py",
-          "line": 39,
-          "end_line": 82
+          "line": 32,
+          "end_line": 85
         },
         {
           "path": "app/schemas/estimations.py",
           "line": 34,
-          "end_line": 36
+          "end_line": 39
         }
       ]
     },
@@ -94,7 +94,7 @@
       "type": "backend",
       "label": "Error handlers",
       "sublabel": "main.py JSON detail",
-      "tag": "400 / 500 / 502",
+      "tag": "400 / 422 / 500 / 502",
       "pos": [
         560,
         90
@@ -107,12 +107,12 @@
         {
           "path": "app/main.py",
           "line": 49,
-          "end_line": 62
+          "end_line": 67
         },
         {
           "path": "app/exceptions.py",
           "line": 4,
-          "end_line": 24
+          "end_line": 28
         }
       ]
     },
@@ -133,13 +133,13 @@
       "sources": [
         {
           "path": "app/dependencies.py",
-          "line": 34,
-          "end_line": 43
+          "line": 55,
+          "end_line": 86
         },
         {
           "path": "app/routers/estimations.py",
-          "line": 24,
-          "end_line": 25
+          "line": 23,
+          "end_line": 27
         }
       ]
     },
@@ -161,7 +161,7 @@
         {
           "path": "app/services/guardrails/input.py",
           "line": 39,
-          "end_line": 66
+          "end_line": 69
         },
         {
           "path": "app/services/guardrails/input.py",
@@ -170,8 +170,8 @@
         },
         {
           "path": "app/exceptions.py",
-          "line": 16,
-          "end_line": 24
+          "line": 20,
+          "end_line": 28
         }
       ]
     },
@@ -192,8 +192,8 @@
       "sources": [
         {
           "path": "app/services/llm/moderation.py",
-          "line": 14,
-          "end_line": 40
+          "line": 15,
+          "end_line": 46
         },
         {
           "path": "app/services/guardrails/input.py",
@@ -203,7 +203,7 @@
         {
           "path": "app/services/llm/factory.py",
           "line": 49,
-          "end_line": 53
+          "end_line": 58
         }
       ]
     },
@@ -223,8 +223,8 @@
       "sources": [
         {
           "path": "app/dependencies.py",
-          "line": 17,
-          "end_line": 31
+          "line": 23,
+          "end_line": 52
         },
         {
           "path": "app/services/llm/factory.py",
@@ -250,7 +250,7 @@
         {
           "path": "app/config.py",
           "line": 7,
-          "end_line": 39
+          "end_line": 48
         }
       ]
     },
@@ -397,8 +397,8 @@
         },
         {
           "path": "app/services/llm/factory.py",
-          "line": 56,
-          "end_line": 66
+          "line": 60,
+          "end_line": 70
         }
       ]
     },
@@ -419,13 +419,13 @@
       "sources": [
         {
           "path": "app/prompts/loader.py",
-          "line": 43,
-          "end_line": 54
+          "line": 40,
+          "end_line": 60
         },
         {
           "path": "app/prompts/loader.py",
-          "line": 62,
-          "end_line": 86
+          "line": 63,
+          "end_line": 92
         }
       ]
     },
@@ -446,7 +446,7 @@
       "sources": [
         {
           "path": "app/prompts/estimation/v3/system.j2",
-          "line": 74,
+          "line": 72,
           "end_line": 78
         }
       ]
@@ -489,18 +489,18 @@
       "sources": [
         {
           "path": "app/services/llm/litellm.py",
-          "line": 93,
-          "end_line": 107
+          "line": 107,
+          "end_line": 121
         },
         {
           "path": "app/services/llm/litellm.py",
-          "line": 109,
-          "end_line": 144
+          "line": 123,
+          "end_line": 158
         },
         {
           "path": "app/services/llm/litellm.py",
-          "line": 146,
-          "end_line": 239
+          "line": 160,
+          "end_line": 266
         }
       ]
     },
@@ -526,8 +526,8 @@
         },
         {
           "path": "app/services/estimation_service.py",
-          "line": 114,
-          "end_line": 126
+          "line": 115,
+          "end_line": 127
         }
       ]
     },
@@ -548,12 +548,17 @@
       "sources": [
         {
           "path": "app/services/llm/litellm.py",
-          "line": 104,
-          "end_line": 105
+          "line": 22,
+          "end_line": 23
+        },
+        {
+          "path": "app/services/llm/litellm.py",
+          "line": 118,
+          "end_line": 119
         },
         {
           "path": "app/config.py",
-          "line": 19,
+          "line": 17,
           "end_line": 22
         }
       ]
@@ -579,8 +584,8 @@
         },
         {
           "path": "app/config.py",
-          "line": 19,
-          "end_line": 22
+          "line": 14,
+          "end_line": 16
         }
       ]
     }
@@ -829,7 +834,7 @@
       "items": [
         "POST /estimate returns JSON; /estimate/stream sends SSE token and done",
         "GET /context returns the CAG examples for the UI",
-        "InputRejectedError 400, PromptTemplateError 500, LLMProviderError 502",
+        "InputRejectedError 400, UnknownPromptVersionError 422, PromptTemplateError 500, LLMProviderError 502",
         "Stream failures become an SSE error event; description is 20 to 20000 chars"
       ]
     }
