@@ -41,6 +41,6 @@
 
 ## Progress
 - 2026-09-30: document created.
-- 2026-09-30: T1 done in 061d408; T2 in this commit (pytest, test:web, lint, build green). Note: two
+- 2026-09-30: T1 done in 061d408; T2 in 258a9ed (pytest, test:web, lint, build green). Note: two
   pytest tests (`test_cache` factory no-op, `test_semantic_cache` defaults) read the local `.env`
   and fail when it enables a cache; run with `CACHE_ENABLED=false SEMANTIC_CACHE_ENABLED=false`.
