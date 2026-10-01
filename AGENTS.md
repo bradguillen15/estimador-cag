@@ -43,7 +43,7 @@ more context sources) **without rewriting it**.
 uv sync                                    # install deps
 cp .env.example .env                       # then fill the keys
 pnpm install                               # install UI deps (whole workspace)
-pnpm dev                                   # run API + UI together (Ctrl+C stops both)
+pnpm dev                                   # run API + UI together (Ctrl+C stops both); also starts Redis (Docker) if a cache flag is enabled
 uv run uvicorn app.main:app --reload       # run API (http://127.0.0.1:8000/docs)
 pnpm dev:web                               # run UI only (http://localhost:5173, proxies /api → :8000)
 pnpm build                                 # build UI → web/dist, served by FastAPI at /

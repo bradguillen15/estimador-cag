@@ -89,6 +89,12 @@ Starts the API (FastAPI with `--reload`, http://127.0.0.1:8000, docs at `/docs`)
 stops both; if one fails (e.g. port 8000 in use) the other stops too. To run them separately:
 `pnpm dev:api` and `pnpm dev:web`.
 
+When `CACHE_ENABLED` or `SEMANTIC_CACHE_ENABLED` is true (in the environment or `.env`),
+`pnpm dev` first starts Redis Stack through Docker (`docker-compose.yml`, `[redis]` log prefix) and
+stops it on exit; with both flags off it does not touch Docker, and if Docker is unavailable it
+warns and the app runs without a cache. Use `REDIS_URL=redis://localhost:6379/0` to point the app
+at it. To run Redis by hand: `docker compose up -d redis` (`docker compose stop redis` to stop).
+
 In development Vite proxies `/api` and `/health` to the API, so the UI uses relative URLs and
 no CORS setup is needed.
 
