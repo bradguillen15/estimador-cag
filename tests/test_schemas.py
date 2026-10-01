@@ -16,7 +16,7 @@ def test_accepts_a_valid_request() -> None:
     ("field", "value"),
     [
         ("description", "x" * 19),
-        ("description", "x" * 2001),
+        ("description", "x" * 20001),
         ("project_type", "blockchain"),
         ("detail_level", "extreme"),
         ("output_format", "pdf"),
@@ -45,7 +45,7 @@ def test_unsupported_languages_fall_back_to_spanish(sent: object) -> None:
 
 def test_description_length_bounds_are_inclusive() -> None:
     EstimationRequest.model_validate({**VALID_REQUEST, "description": "x" * 20})
-    EstimationRequest.model_validate({**VALID_REQUEST, "description": "x" * 2000})
+    EstimationRequest.model_validate({**VALID_REQUEST, "description": "x" * 20000})
 
 
 @pytest.mark.parametrize("missing", ["description", "project_type", "detail_level", "output_format"])

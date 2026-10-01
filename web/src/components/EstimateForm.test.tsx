@@ -29,7 +29,7 @@ describe('EstimateForm', () => {
     expect(submit).toBeDisabled()
 
     await user.type(description, 'Muy corto')
-    expect(screen.getByText(/9 \/ 2000/)).toBeInTheDocument()
+    expect(screen.getByText(/9 \/ 20000/)).toBeInTheDocument()
     expect(screen.getByText(/mínimo 20/)).toBeInTheDocument()
     expect(submit).toBeDisabled()
 

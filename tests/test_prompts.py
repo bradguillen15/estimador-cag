@@ -80,6 +80,34 @@ def test_system_prompt_keeps_the_estimation_rules() -> None:
     assert "Never invent rates" in system
 
 
+def test_v3_asks_for_items_first_then_the_exact_sum() -> None:
+    system = _system()
+    assert "Never pick a round total first" in system
+    assert "computed after the items are decided" in system
+
+
+def test_v3_includes_discovery_and_deployment_and_forbids_invented_dates() -> None:
+    system = _system()
+    assert "discovery / kick-off" in system
+    assert "deployment /" in system and "CI/CD" in system
+    assert "Do not invent stakeholders, deadlines or dates" in system
+
+
+def test_low_confidence_is_tied_to_the_insufficient_information_path() -> None:
+    system = _system()
+    assert "`low`" in system
+    assert "use the insufficient-information path" in system
+
+
+def test_every_example_ends_with_a_confidence_line() -> None:
+    examples = render_estimation_examples(PROMPT_VERSION)
+    assert examples.count("**Confidence: ") == examples.count("**Total estimate: ") == 3
+
+
+def test_active_prompt_version_is_v3() -> None:
+    assert PROMPT_VERSION == "v3"
+
+
 def test_default_response_language_is_spanish_with_the_original_labels() -> None:
     block = _system().split(LANGUAGE_HEADING)[1]
     assert "Respond entirely in Spanish" in block
@@ -88,6 +116,7 @@ def test_default_response_language_is_spanish_with_the_original_labels() -> None
         "**Total estimado: <N> horas**",
         "**Equipo recomendado: <perfiles> (≈<F> FTE)**",
         "**Duración estimada: <N>-<M> semanas**",
+        "**Confianza: <alta|media|baja> — <motivo en una línea>**",
         "## Información insuficiente",
     ):
         assert label in block
@@ -109,6 +138,7 @@ def test_english_requests_get_an_explicit_english_instruction_and_labels() -> No
         "**Total estimate: <N> hours**",
         "**Recommended team: <roles> (≈<F> FTE)**",
         "**Estimated duration: <N>-<M> weeks**",
+        "**Confidence: <high|medium|low> — <one-line reason>**",
         "## Insufficient information",
     ):
         assert label in block
@@ -169,6 +199,17 @@ def test_examples_cover_every_output_format() -> None:
     # the "This request" block.
     for output_format in ("line items", "table by phases", "narrative"):
         assert output_format in examples
+
+
+def test_table_example_rows_sum_to_the_stated_total_and_fit_the_medium_range() -> None:
+    examples = render_estimation_examples(PROMPT_VERSION)
+    section = examples.split("| Phase | Tasks | Hours |")[1].split("\n---\n")[0]
+    rows = [line for line in section.splitlines() if line.startswith("|") and not line.startswith("|---")]
+    hours = [int(line.strip("|").split("|")[-1]) for line in rows]
+    total = int(section.split("**Total estimate: ")[1].split(" hours")[0])
+    assert 5 <= len(rows) <= 8  # `request.j2` asks for 5-8 items at medium detail
+    assert sum(hours) == total
+
 
 
 # --- versions and failures --------------------------------------------------------------------

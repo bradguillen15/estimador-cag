@@ -72,6 +72,20 @@ describe('EstimationResult', () => {
     expect(screen.queryByText(/tok/)).not.toBeInTheDocument()
   })
 
+  it('shows a cached chip only for cache hits, in streaming metadata and JSON responses', () => {
+    const { rerender } = withLocale(
+      <EstimationResult state={state({ status: 'done', text: 'Hecho', meta: { ...DONE_META, cache_hit: true } })} />,
+      'en',
+    )
+    expect(screen.getByText('cached')).toBeInTheDocument()
+
+    rerender(<EstimationResult state={state({ status: 'done', text: 'Hecho', meta: { prompt_version: 'v1', cache_hit: true } })} />)
+    expect(screen.getByText('cached')).toBeInTheDocument()
+
+    rerender(<EstimationResult state={state({ status: 'done', text: 'Hecho', meta: { ...DONE_META, cache_hit: false } })} />)
+    expect(screen.queryByText('cached')).not.toBeInTheDocument()
+  })
+
   it('shows errors as an alert', () => {
     withLocale(<EstimationResult state={state({ status: 'error', error: 'Error HTTP 502: El proveedor LLM falló.' })} />)
     expect(screen.getByRole('alert')).toHaveTextContent('Error HTTP 502: El proveedor LLM falló.')

@@ -17,6 +17,9 @@ class GenerationMetrics:
     input_tokens: int | None = None
     output_tokens: int | None = None
     latency_seconds: float | None = None
+    cached_tokens: int | None = None
+    cost_usd: float | None = None
+    cache_hit: bool = False  # answered from the response cache, no LLM call
 
 
 class LLMProvider(Protocol):
@@ -33,3 +36,15 @@ class StreamingLLMProvider(LLMProvider, Protocol):
         user_prompt: str,
         metrics: GenerationMetrics | None = None,
     ) -> Iterator[str]: ...
+
+
+class ModerationProvider(Protocol):
+    """Content moderation: returns the flagged category names (empty list = allowed)."""
+
+    def flagged_categories(self, text: str) -> list[str]: ...
+
+
+class EmbeddingProvider(Protocol):
+    """Turns text into an embedding vector. Raises on any failure (callers decide to degrade)."""
+
+    def embed(self, text: str) -> list[float]: ...

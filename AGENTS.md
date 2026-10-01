@@ -14,7 +14,7 @@ examples are injected into the system prompt instead of being retrieved at query
 Single flow today (`/estimate` returns the full answer, `/estimate/stream` the same answer over SSE):
 
 ```
-POST /api/v1/estimate[/stream]  →  router  →  EstimationService  →  LLMProvider (OpenAI)  →  Markdown estimation
+POST /api/v1/estimate[/stream]  →  router (get_safe_request: input guardrails)  →  EstimationService  →  exact cache → semantic cache → LLMProvider (LiteLLM)  →  output check  →  Markdown estimation
 ```
 
 The interactive diagram of this flow, with file/line sources per node, is
@@ -37,13 +37,13 @@ more context sources) **without rewriting it**.
 | Node | **24 LTS**, pinned in `.nvmrc` (CI reads the same file) |
 | JS package manager | **pnpm 10** workspace (root + `web/`, one `pnpm-lock.yaml`). npm/yarn are blocked. |
 | Config | pydantic-settings |
-| LLM SDK | `openai` |
+| LLM SDK | `litellm` (Anthropic primary + OpenAI fallback, ordered by `LLM_MODELS`) |
 
 ```bash
 uv sync                                    # install deps
 cp .env.example .env                       # then fill the keys
 pnpm install                               # install UI deps (whole workspace)
-pnpm dev                                   # run API + UI together (Ctrl+C stops both)
+pnpm dev                                   # run API + UI together (Ctrl+C stops both); also starts Redis (Docker) if a cache flag is enabled
 uv run uvicorn app.main:app --reload       # run API (http://127.0.0.1:8000/docs)
 pnpm dev:web                               # run UI only (http://localhost:5173, proxies /api → :8000)
 pnpm build                                 # build UI → web/dist, served by FastAPI at /
@@ -73,9 +73,11 @@ app/
 ├── schemas/             # Pydantic request/response models
 └── services/            # Business logic. Knows nothing about HTTP.
     ├── estimation_service.py   # Use case: render prompts, delegate to the provider
-    └── llm/                    # base.py (Protocols) · openai.py (only SDK user) · factory.py
+    ├── guardrails/             # input.py (injection reject, PII redaction, moderation hook) · output.py (answer structure check)
+    ├── cache/                  # base.py (ResponseCache Protocol, key) · redis_cache.py (exact) · semantic.py (redisvl) · factory.py
+    └── llm/                    # base.py (Protocols) · litellm.py / moderation.py / embeddings.py (the only users of the LLM SDK) · factory.py
 
-tests/                   # pytest: prompts, schemas, provider (fake SDK client), service, routes
+tests/                   # pytest: prompts, schemas, provider (patched litellm.completion), service, routes
 
 web/src/                 # React UI — talks to the API over HTTP only, never imports Python
 ├── api/                 # client.ts (fetch + SSE parser) and types.ts (mirror of app/schemas)
@@ -108,7 +110,9 @@ patch around it.
 | Input shape validation | `schemas/` (Pydantic) | Declarative constraints, not `if` statements in the router |
 | Domain rules / errors | `services/` | Raise domain exceptions, let the router translate them |
 | Prompt text & assembly | `prompts/` + `prompts/loader.py` | Never inline a prompt string in a router |
-| Provider SDK calls | `services/llm/<provider>.py` | One file per provider, one class per provider |
+| Provider SDK calls | `services/llm/` | `litellm` is imported only under `app/services/llm/` (completion, moderation, embeddings); a non-LiteLLM backend would get its own file there |
+| Cache backends | `services/cache/` | `redis` / `redisvl` are imported only under `app/services/cache/`; callers see the `ResponseCache` / `SemanticCache` Protocols |
+| Input guardrails | `services/guardrails/input.py` | Run in the `get_safe_request` dependency (see §5.1), never inside a streaming handler |
 | Env vars & secrets | `config.py` | `os.getenv` anywhere else is a bug |
 
 ---
@@ -119,27 +123,26 @@ Generic principle statements are useless. These are the concrete rules they tran
 
 ### 4.1 SRP — one reason to change per unit
 
-`LLMService` currently does three jobs: build the prompt, hold provider config, and call the OpenAI
+`LLMService` currently does three jobs: build the prompt, hold provider config, and call the LLM
 SDK. Three reasons to change. Split as work lands:
 
 - **Prompt assembly** → `app/prompts/loader.py` (changes when prompt wording changes)
-- **Provider call** → `app/services/llm/openai.py` (changes when the SDK changes)
+- **Provider call** → `app/services/llm/litellm.py` (changes when the SDK changes)
 - **Use case orchestration** → `app/services/estimation_service.py` (changes when the business flow changes)
 
 A router handler stays under ~15 lines. If it grows, the logic belongs in a service.
 
 ### 4.2 OCP — open for extension, closed for modification
 
-Adding a second LLM provider must not require editing the estimation logic.
+Adding another LLM vendor must not require editing the estimation logic.
 
-Target structure:
+Structure:
 
 ```
 app/services/llm/
-├── base.py       # LLMProvider Protocol  (the abstraction)
-├── openai.py     # OpenAIProvider
-├── anthropic.py  # AnthropicProvider
-└── factory.py    # get_llm_provider(settings) -> LLMProvider
+├── base.py       # LLMProvider / StreamingLLMProvider Protocols (the abstraction)
+├── litellm.py    # LiteLLMProvider (ordered model list with fallback; the only SDK user)
+└── factory.py    # get_llm_provider(settings) -> StreamingLLMProvider
 ```
 
 ```python
@@ -152,7 +155,9 @@ class LLMProvider(Protocol):
     def complete(self, system_prompt: str, user_prompt: str) -> str: ...
 ```
 
-New provider = new file + one entry in the factory map. Zero edits to the service or the router.
+LiteLLM already speaks to many vendors, so a new vendor = its `<prefix>` → API-key mapping in
+`factory.py` plus a key setting. Zero edits to the service or the router. Write a new provider
+class only if we ever need a backend LiteLLM cannot reach.
 
 ### 4.3 LSP — substitutability
 
@@ -222,8 +227,7 @@ reasons should stay separate.
 - Prefer a plain function over a class with one method; prefer a dict lookup over a class hierarchy.
 
 Apply the abstractions in §4.2 **when the second case appears**, not before. The Protocol above is
-justified because `LLM_PROVIDER` and `ANTROPIC_API_KEY` already exist in config — the second case is
-already on the roadmap.
+justified because the fallback chain in `LLM_MODELS` and a test `FakeProvider` already give two implementations.
 
 ---
 
@@ -237,22 +241,36 @@ already on the roadmap.
    domain errors to HTTP.
 4. Register the router in `main.py` if it is new. Keep the `/api/v1` prefix.
 5. Give the handler an explicit return type and `response_model`.
+   Estimation handlers take the request through `Depends(get_safe_request)` so the input guardrails
+   run **before any streaming response starts**: a rejection must be an HTTP 400, never an SSE `error`
+   event (the SSE handler body only runs after the response has begun).
 6. If the UI consumes it: mirror the schema in `web/src/api/types.ts` and add one function to
    `web/src/api/client.ts`. Components call hooks/client, never `fetch` directly.
 
-### 5.2 Add an LLM provider
+### 5.2 Add an LLM vendor
 
-1. Create `app/services/llm/<provider>.py` with a class implementing `LLMProvider`.
-2. Register it in `factory.py`'s provider map, keyed by the `LLM_PROVIDER` value.
-3. Add its API key to `config.py` **and** `.env.example`.
-4. Translate SDK exceptions into `LLMProviderError` at the boundary — SDK types must not leak out.
+1. Add its `<prefix>` → (`ENV_NAME`, key) entry to `key_by_prefix` in `factory.py`.
+2. Add its API key to `config.py` **and** `.env.example`.
+3. Select it by listing `<prefix>/<model>` in `LLM_MODELS` (order = priority: first is primary, the rest
+   are fallbacks).
+4. If the vendor needs special request parameters (e.g. prompt caching), handle them in
+   `litellm.py`; SDK exceptions must keep translating to `LLMProviderError` there.
 5. Do not touch the service, the router, or the schemas.
+
+Only if a backend LiteLLM cannot reach is ever needed: add a class implementing
+`StreamingLLMProvider` in a new file and choose it in `factory.py`.
 
 ### 5.3 Add / change prompt context (CAG)
 
 - Prompts live in `app/prompts/estimation/<version>/` (`system.j2`, `examples.j2`, `user.j2`).
   Changing wording or examples in a way that alters output → new version folder + bump
   `PROMPT_VERSION`.
+- Every estimate endpoint and `/context` accept `?prompt_version=<vN>` (validated against the
+  folders on disk in `dependencies.get_prompt_version` → 422); the default is `PROMPT_VERSION`.
+  The effective version must flow into rendering, both cache keys and the response, never the constant.
+- The active version is `v3` (adds the confidence line, items-then-sum rule, discovery/deployment and
+  no-invented-dates rules). The output check (`services/guardrails/output.py`) mirrors the closing-block
+  labels of `language.j2`: change them together (a test keeps them in sync).
 - `system.j2` = a **static prefix** (rules + examples, never request data) followed by two short
   trailing blocks: `request.j2` (instructions for the chosen detail level / output format) and
   `language.j2` (response language). Keeping every variable part at the end is what lets the
@@ -298,7 +316,7 @@ source) and the rendered `<name>.html` are versioned; archify's `*.finalize*.jso
 
 Everything developers read is **English**: identifiers, comments, docstrings, docs (README, this
 file), commit messages, logs, CLI/script output, config errors, and the LLM prompts and few-shot
-examples (`app/prompts/`, from `v2`).
+examples (`app/prompts/`, from `v2`; active: `v3`).
 
 **Spanish** is only for what the end user sees: UI copy in `web/src/` and error messages that reach
 the UI (e.g. `LLMProviderError` messages, the unexpected-stream error, the API-unreachable message).
@@ -313,6 +331,7 @@ prompt, kept only for comparison/rollback. Do not mix languages within a single 
   (`PromptTemplateError`, `LLMProviderError`, both subclasses of `EstimationError`). Never
   `HTTPException`.
 - Current mapping: invalid input is rejected by the Pydantic schema → **422** (FastAPI default);
+  `InputRejectedError` (prompt injection, moderation) → **400**;
   `PromptTemplateError` → **500**; upstream LLM failure (`LLMProviderError`) → **502**. On
   `/estimate/stream` the response has already started, so failures arrive as an SSE `error` event.
 - Prefer a single `@app.exception_handler` per domain exception in `main.py` over repeating
@@ -333,10 +352,10 @@ Fix these opportunistically when you touch the surrounding code; do not replicat
 
 | # | Issue | Location | Fix |
 |---|---|---|---|
-| 1 | Typos in setting names: `open_api_key`, `antropic_api_key` | `config.py`, `.env.example` | Rename to `openai_api_key` / `anthropic_api_key` (both files, same commit) |
-| 2 | All settings required → app crashes on boot with a partial `.env` | `config.py` | Defaults for non-secrets if desired; provider keys optional — intentionally left required for now |
+| 2 | All settings required → app crashes on boot with a partial `.env` | `config.py` | Provider keys are now optional (the factory checks the ones in use); defaults for the remaining non-secrets if desired |
 | 5 | `estimation` returned as an opaque Markdown blob | `routers/estimations.py` | Consider a structured response (tasks, total hours, weeks) when a consumer needs it — not before |
 | 6 | No Python linter/formatter yet | repo-wide | Add `ruff` when style drift shows up (§8) |
+| 7 | Semantic cache is unverified against a real Redis Stack, and a setup failure is permanent for the process (no retry; restart to recover) | `services/cache/semantic.py` | Run an integration check against `redis/redis-stack` (index creation, bucket filter, TTL) before moving `SEMANTIC_CACHE_LOG_ONLY` to `false` |
 
 ---
 
@@ -351,7 +370,7 @@ pnpm test:coverage       # pytest --cov=app + vitest --coverage
 ```
 
 - API: `pytest` + `TestClient`. `tests/conftest.py` pins fake settings and **fails any test that
-  reaches the real OpenAI SDK**; use `FakeProvider` / the fake SDK client instead.
+  reaches the real `litellm.completion`**; use `FakeProvider` / the fake SDK client instead.
 - UI: Vitest + React Testing Library + jsdom. Mock `web/src/api/client.ts` at the module boundary;
   query by role/label, not by class names.
 
@@ -370,6 +389,8 @@ the hook with `--no-verify` to land failing code.
 Rules:
 
 - Test **services** directly with a fake `LLMProvider` — never hit a real API in a test.
+- Redis, moderation and embeddings are always faked (`FakeCache`, fake index/embedder, patched
+  `litellm.moderation` / `embedding`, which `conftest.py` blocks); no Redis in tests or CI.
 - Test **routers** through `TestClient` with `app.dependency_overrides` swapping the service.
 - Every bug fix gets a regression test.
 - Never assert on exact LLM output; assert on contract (status code, schema, error mapping).

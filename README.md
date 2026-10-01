@@ -8,10 +8,10 @@ Markdown estimate (assumptions, task breakdown, total hours, team and duration).
 |---|---|
 | ![Estimator in dark mode answering in Spanish](docs/screenshots/estimator-dark-es.png) | ![Estimator in light mode answering in English](docs/screenshots/estimator-light-en.png) |
 
-- **API:** FastAPI + OpenAI (`app/`), JSON and SSE streaming endpoints.
+- **API:** FastAPI + LiteLLM (Anthropic primary, OpenAI fallback) (`app/`), JSON and SSE streaming endpoints.
 - **UI:** React 19 + TypeScript + Tailwind v4 on Vite (`web/`). Dark by default, light/dark
   toggle, language toggle (Español / English) for both the UI copy and the model response.
-- **Prompts:** versioned Jinja2 templates in English (`app/prompts/estimation/v2/`); the model
+- **Prompts:** versioned Jinja2 templates in English (`app/prompts/estimation/v3/`); the model
   answers in the language selected in the sidebar.
 
 ## Requirements
@@ -19,7 +19,7 @@ Markdown estimate (assumptions, task breakdown, total hours, team and duration).
 - Python 3.13 with [uv](https://docs.astral.sh/uv/)
 - **Node 24 LTS** (pinned in `.nvmrc`: run `nvm use`) and **pnpm 10** (the repo is a pnpm workspace;
   `npm install` is blocked on purpose). With Node 24, `corepack enable pnpm` installs the pinned pnpm.
-- An OpenAI API key
+- An Anthropic and/or OpenAI API key, for the providers listed in `LLM_MODELS`
 
 ## Setup
 
@@ -27,8 +27,56 @@ Markdown estimate (assumptions, task breakdown, total hours, team and duration).
 nvm use                # Node 24 from .nvmrc
 uv sync                # Python dependencies
 pnpm install           # JS dependencies (whole workspace) + the pre-commit hook
-cp .env.example .env   # then set OPEN_API_KEY
+cp .env.example .env   # then set ANTHROPIC_API_KEY and OPENAI_API_KEY
 ```
+
+## LLM provider
+
+`LLM_MODELS` is the single source of truth for the model and the fallback order. It is a
+comma-separated `<provider>/<model>` list handled by [LiteLLM](https://docs.litellm.ai), e.g.
+`LLM_MODELS=anthropic/claude-sonnet-5-5,openai/gpt-4o-mini`. **Order = priority**: the first model is
+the primary and the following ones are fallbacks, tried when a call fails (before the first streamed
+token for `/estimate/stream`). Supported prefixes: `anthropic` (needs `ANTHROPIC_API_KEY`) and
+`openai` (needs `OPENAI_API_KEY`); only the keys of the providers you list are required, and a
+missing key fails at startup. The Anthropic system message is marked for prompt caching.
+
+`LLM_TIMEOUT` (seconds, default 30), `LLM_RETRIES` (per model, default 2) and `LLM_MAX_TOKENS`
+(default 16000) apply to every model in the list where supported. Logs include `served_model` and
+`fallback_used`.
+
+## Guardrails and caching
+
+Everything below is configured in `.env` (see `.env.example`).
+
+**Input guardrails** run on the description before any cache lookup or LLM call, for both
+`/estimate` and `/estimate/stream` (in the stream, a rejection is a plain HTTP 400, never an `error`
+event):
+
+- Prompt-injection heuristics (English and Spanish) reject the request with **400** and a Spanish
+  message. Best effort: obfuscation such as leetspeak is not covered.
+- PII (emails, phone numbers, IBANs) is **redacted** with `[EMAIL]`, `[PHONE]`, `[IBAN]` before the
+  text reaches the provider; the request is not rejected.
+- `MODERATION_ENABLED` (default `false`): OpenAI moderation through LiteLLM (needs
+  `OPENAI_API_KEY`). Flagged input returns **400**; a moderation outage only logs a warning.
+
+**Output check:** after a completed answer, the API verifies the Markdown contains the localized
+total line or the insufficient-information heading. A failure logs `output_check_failed` and the
+answer is not cached; the text is never rewritten.
+
+**Exact cache** (Redis): `CACHE_ENABLED` (default `false`), `REDIS_URL`, `CACHE_TTL` (seconds).
+The key covers the prompt version, the model list, the sanitized description and all request
+options, including the response language. A hit skips the LLM; `/estimate/stream` replays it as
+`token` events and its `done` event has `cache_hit: true`. Only completed answers that pass the
+output check are stored. If Redis is unreachable the request still succeeds (warning log, no cache).
+
+**Semantic cache** (opt-in): `SEMANTIC_CACHE_ENABLED` (default `false`) reuses the answer of a
+near-duplicate description in the same bucket (prompt version, type, detail, format, language and
+model list) when the embedding similarity is at least `SEMANTIC_CACHE_THRESHOLD` (0.92). With
+`SEMANTIC_CACHE_LOG_ONLY=true` (default) it only logs would-be hits, to calibrate the threshold.
+Also `SEMANTIC_CACHE_TTL`, `EMBEDDING_MODEL` (default `openai/text-embedding-3-small`) and
+`EMBEDDING_DIMS` (1536). It needs **Redis Stack** (RediSearch), e.g. `docker run -p 6379:6379
+redis/redis-stack-server`; plain Redis works for the exact cache only. If its setup fails, the
+semantic cache stays off until the app is restarted.
 
 ## Run
 
@@ -40,6 +88,12 @@ Starts the API (FastAPI with `--reload`, http://127.0.0.1:8000, docs at `/docs`)
 (Vite, **http://localhost:5173**) in one terminal, with `[api]` / `[web]` prefixed logs. `Ctrl+C`
 stops both; if one fails (e.g. port 8000 in use) the other stops too. To run them separately:
 `pnpm dev:api` and `pnpm dev:web`.
+
+When `CACHE_ENABLED` or `SEMANTIC_CACHE_ENABLED` is true (in the environment or `.env`),
+`pnpm dev` first starts Redis Stack through Docker (`docker-compose.yml`, `[redis]` log prefix) and
+stops it on exit; with both flags off it does not touch Docker, and if Docker is unavailable it
+warns and the app runs without a cache. Use `REDIS_URL=redis://localhost:6379/0` to point the app
+at it. To run Redis by hand: `docker compose up -d redis` (`docker compose stop redis` to stop).
 
 In development Vite proxies `/api` and `/health` to the API, so the UI uses relative URLs and
 no CORS setup is needed.
@@ -62,8 +116,8 @@ pnpm test:coverage   # coverage for both
 pnpm lint            # ESLint (pnpm build also type-checks)
 ```
 
-Tests never call the real LLM: the API tests use a fake provider (and fail if anything reaches the
-OpenAI SDK), and the UI tests mock `web/src/api/client.ts`. The prompt template tests in
+Tests never call the real LLM, Redis, moderation or embeddings: the API tests use fakes (and fail if
+anything reaches `litellm.completion`, `moderation` or `embedding`), and the UI tests mock `web/src/api/client.ts`. The prompt template tests in
 `tests/prompts/` render the templates only and run in milliseconds.
 
 ### Pre-commit hook
@@ -103,9 +157,9 @@ Small open-source repos are limited to about one CodeRabbit review per hour.
 | Method | Path | Response |
 |--------|------|----------|
 | `GET` | `/health` | `{"status": "ok"}` |
-| `POST` | `/api/v1/estimate` | `EstimationResponse` (`text`, `prompt_version`) |
-| `POST` | `/api/v1/estimate/stream` | SSE events: `token`, `done` (model, tokens, latency, `prompt_version`), `error` |
-| `GET` | `/api/v1/context` | `PromptContextResponse` (`prompt_version`, `examples_markdown`) |
+| `POST` | `/api/v1/estimate[?prompt_version=v2]` | `EstimationResponse` (`text`, `prompt_version`, `cache_hit`) |
+| `POST` | `/api/v1/estimate/stream[?prompt_version=v2]` | SSE events: `token`, `done` (model, tokens, latency, `cache_hit`, `prompt_version`), `error` |
+| `GET` | `/api/v1/context[?prompt_version=v2]` | `PromptContextResponse` (`prompt_version`, `examples_markdown`) |
 
 ```bash
 curl -X POST http://127.0.0.1:8000/api/v1/estimate \
@@ -122,19 +176,33 @@ curl -X POST http://127.0.0.1:8000/api/v1/estimate \
 - `project_type`: `mobile_app` | `web_saas` | `internal_tool` | `data_pipeline`
 - `detail_level`: `summary` | `medium` | `detailed`
 - `output_format`: `phases_table` | `line_items` | `narrative`
+- `description`: 20 to 20000 characters.
 - `language` (optional): `es` (default) | `en`. Unsupported values fall back to `es`.
 
 Provider failures return **502** with a safe message, prompt misconfiguration **500**, invalid
-input **422**. In the stream, failures arrive as an `error` event.
+input **422**, input rejected by a guardrail **400**. In the stream, failures arrive as an `error` event.
 
 ## Prompts
 
 `app/prompts/estimation/<version>/` holds the templates; `PROMPT_VERSION` in
-`app/prompts/loader.py` selects the active one (`v2`; `v1` is the original Spanish prompt, kept
-for comparison). The system prompt is a static prefix (rules + few-shot examples, identical for
+`app/prompts/loader.py` selects the active one (`v3`; `v1` is the original Spanish prompt and `v2` the
+previous one, kept for comparison). The system prompt is a static prefix (rules + few-shot examples, identical for
 every request, so the provider can cache it) followed by two short blocks: `request.j2` (the
 chosen detail level and output format) and `language.j2` (the response language). The project
-description only goes in `user.j2`.
+description only goes in `user.j2`. `v3` adds a confidence line to the closing block, an
+items-first-then-sum rule, discovery and deployment work, and a rule against inventing dates or
+stakeholders.
+
+### Prompt versions
+
+All three endpoints accept an optional `?prompt_version=<vN>` query parameter to run a specific
+prompt version side by side (for example `v1` vs `v3`). Without it the active `PROMPT_VERSION` is
+used. The allowed values are the folders under `app/prompts/estimation/`; anything else (including
+path-like values such as `../x`) is rejected with **422** before any guardrail, cache or LLM work,
+and before a stream starts. The effective version is part of the exact and semantic cache keys and
+is echoed back as `prompt_version` (response body and SSE `done` event). `v1` predates the
+`language` field, so the response language does not apply to it (it always answers in Spanish); the
+output check may flag `v1`/`v2` answers, which only means they are not cached.
 
 ## Project structure
 
@@ -148,7 +216,7 @@ app/
 ├── prompts/              # Versioned Jinja2 templates + loader
 ├── routers/              # HTTP / SSE endpoints
 ├── schemas/              # Pydantic request/response models
-└── services/             # EstimationService + LLM providers (services/llm/)
+└── services/             # EstimationService; llm/ (LiteLLM), guardrails/ (input, output), cache/ (Redis)
 tests/                    # pytest (API + prompt templates)
 web/src/
 ├── api/                  # HTTP/SSE client + types (mirror of app/schemas)

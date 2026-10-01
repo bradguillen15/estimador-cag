@@ -1,7 +1,9 @@
 #!/usr/bin/env node
 // Runs the API (FastAPI on :8000) and the UI (Vite on :5173) together, with prefixed logs.
 // Ctrl+C stops both; if either process exits, the other one is stopped too.
-import { spawn } from 'node:child_process'
+import { spawn, spawnSync } from 'node:child_process'
+import { existsSync, readFileSync } from 'node:fs'
+import { parseEnv } from 'node:util'
 
 const PROCESSES = [
   { name: 'api', color: 36, command: 'uv', args: ['run', 'uvicorn', 'app.main:app', '--reload'] },
@@ -10,6 +12,52 @@ const PROCESSES = [
 
 const children = []
 let stopping = false
+let redisStartedHere = false
+
+const TRUTHY = new Set(['1', 'true', 'yes', 'on'])
+const REDIS_LABEL = '\x1b[31m[redis]\x1b[0m'
+
+// Mirrors the app: a real env var wins over `.env`. Values are never printed.
+function cacheEnabled() {
+  let fileEnv = {}
+  const envFile = new URL('../.env', import.meta.url)
+  if (existsSync(envFile)) {
+    try {
+      fileEnv = parseEnv(readFileSync(envFile, 'utf8'))
+    } catch {
+      fileEnv = {}
+    }
+  }
+  return ['CACHE_ENABLED', 'SEMANTIC_CACHE_ENABLED'].some((name) => {
+    const value = process.env[name] ?? fileEnv[name]
+    return TRUTHY.has(String(value ?? '').trim().toLowerCase())
+  })
+}
+
+function startRedis() {
+  if (!cacheEnabled()) {
+    process.stdout.write(`${REDIS_LABEL} skipped (no cache enabled)\n`)
+    return
+  }
+  process.stdout.write(`${REDIS_LABEL} starting Redis via Docker…\n`)
+  const result = spawnSync('docker', ['compose', 'up', '-d', '--wait', 'redis'], {
+    stdio: 'ignore',
+    shell: process.platform === 'win32',
+  })
+  if (result.status === 0) {
+    redisStartedHere = true
+    process.stdout.write(`${REDIS_LABEL} ready on localhost:6379\n`)
+  } else {
+    process.stderr.write(`${REDIS_LABEL} warning: could not start Redis (is Docker installed and running?); the cache will degrade to no cache\n`)
+  }
+}
+
+function stopRedis() {
+  if (!redisStartedHere) return
+  redisStartedHere = false
+  process.stdout.write(`${REDIS_LABEL} stopping…\n`)
+  spawnSync('docker', ['compose', 'stop', 'redis'], { stdio: 'ignore', shell: process.platform === 'win32' })
+}
 
 function pipeWithPrefix(stream, target, label) {
   let pending = ''
@@ -29,7 +77,10 @@ function stopAll(exitCode) {
   for (const child of children) {
     if (child.exitCode === null && child.signalCode === null) child.kill('SIGTERM')
   }
+  stopRedis()
 }
+
+startRedis()
 
 for (const { name, color, command, args } of PROCESSES) {
   const label = `\x1b[${color}m[${name}]\x1b[0m`

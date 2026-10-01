@@ -91,6 +91,29 @@ describe('Sidebar', () => {
     expect(within(group).getByRole('radio', { name: /English/ })).not.toBeChecked()
   })
 
+  it('lists the default option first (English, Dark)', () => {
+    renderSidebar()
+
+    const labels = (name: string) =>
+      within(screen.getByRole('radiogroup', { name }))
+        .getAllByRole('radio')
+        .map((radio) => radio.closest('label')?.textContent?.trim())
+    const [firstLanguage, secondLanguage] = labels('Idioma')
+    const [firstTheme, secondTheme] = labels('Tema')
+    expect(firstLanguage).toMatch(/English/)
+    expect(secondLanguage).toMatch(/Español/)
+    expect(firstTheme).toMatch(/Oscuro/)
+    expect(secondTheme).toMatch(/Claro/)
+  })
+
+  it('renders the brand badge with a decorative icon instead of a letter', () => {
+    renderSidebar()
+
+    const brand = screen.getByText('Estimador CAG')
+    expect(brand.querySelector('svg[aria-hidden="true"]')).toBeInTheDocument()
+    expect(brand.textContent?.trim()).toBe('Estimador CAG')
+  })
+
   it('reports the language the user picks', async () => {
     const user = userEvent.setup()
     const { onLanguageChange } = renderSidebar()

@@ -21,6 +21,8 @@ export interface EstimationRequest extends EstimationInput {
 export interface EstimationResponse {
   text: string
   prompt_version: string
+  /** True when the answer was served from the response cache (no LLM call). */
+  cache_hit: boolean
 }
 
 export interface PromptContext {
@@ -35,6 +37,8 @@ export interface GenerationMeta {
   input_tokens?: number | null
   output_tokens?: number | null
   latency_seconds?: number | null
+  /** True when the answer was replayed from the response cache (no LLM call). */
+  cache_hit?: boolean
   prompt_version: string
 }
 
@@ -44,9 +48,10 @@ export type StreamEvent =
   | { type: 'error'; detail: string }
 
 export const DESCRIPTION_MIN = 20
-export const DESCRIPTION_MAX = 2000
+export const DESCRIPTION_MAX = 20000
 
-export const DEFAULT_RESPONSE_LANGUAGE: ResponseLanguage = 'es'
+/** UI default: English. The API's own default stays 'es' for other clients, so the UI always sends `language`. */
+export const DEFAULT_RESPONSE_LANGUAGE: ResponseLanguage = 'en'
 
 /** Supported UI + model response languages. Labels live in i18n. */
 export const RESPONSE_LANGUAGES: readonly ResponseLanguage[] = ['es', 'en']

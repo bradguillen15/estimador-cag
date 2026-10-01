@@ -6,23 +6,26 @@ import os
 # Explicit env vars win over the developer's .env, so a real key can never be picked up.
 os.environ.update(
     {
-        "OPEN_API_KEY": "test-key",
-        "ANTROPIC_API_KEY": "test-key",
-        "LLM_PROVIDER": "openai",
-        "LLM_MODEL": "gpt-test",
+        "OPENAI_API_KEY": "test-key",
+        "ANTHROPIC_API_KEY": "test-key",
         "APP_ENV": "development",
         "LOG_LEVEL": "WARNING",
+        # Optional features off regardless of the developer's .env; tests opt in explicitly.
+        "MODERATION_ENABLED": "false",
+        "CACHE_ENABLED": "false",
+        "SEMANTIC_CACHE_ENABLED": "false",
     }
 )
 
 from collections.abc import Iterator  # noqa: E402
 
+import litellm  # noqa: E402
 import pytest  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
-from openai.resources.chat.completions import Completions  # noqa: E402
 
 from app.dependencies import get_estimation_service  # noqa: E402
 from app.main import app  # noqa: E402
+from app.services.cache.base import CachedAnswer  # noqa: E402
 from app.services.estimation_service import EstimationService  # noqa: E402
 from app.services.llm.base import GenerationMetrics  # noqa: E402
 
@@ -36,12 +39,14 @@ VALID_REQUEST: dict[str, str] = {
 
 @pytest.fixture(autouse=True)
 def _forbid_real_llm_calls(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Safety net: any code path that reaches the real OpenAI SDK fails the test."""
+    """Safety net: any code path that reaches real LiteLLM completion/moderation/embedding fails."""
 
     def _blocked(*_args: object, **_kwargs: object) -> None:
-        raise AssertionError("A test tried to call the real OpenAI API")
+        raise AssertionError("A test tried to call a real LLM API")
 
-    monkeypatch.setattr(Completions, "create", _blocked)
+    monkeypatch.setattr(litellm, "completion", _blocked)
+    monkeypatch.setattr(litellm, "moderation", _blocked)
+    monkeypatch.setattr(litellm, "embedding", _blocked)
 
 
 class FakeProvider:
@@ -89,15 +94,38 @@ class FakeProvider:
             metrics.latency_seconds = 0.5
 
 
+class FakeCache:
+    """In-memory ``ResponseCache`` that records every get/set."""
+
+    def __init__(self) -> None:
+        self.store: dict[str, CachedAnswer] = {}
+        self.gets: list[str] = []
+        self.sets: list[str] = []
+
+    def get(self, key: str) -> CachedAnswer | None:
+        self.gets.append(key)
+        return self.store.get(key)
+
+    def set(self, key: str, answer: CachedAnswer) -> None:
+        self.sets.append(key)
+        self.store[key] = answer
+
+
+@pytest.fixture
+def fake_cache() -> FakeCache:
+    return FakeCache()
+
+
 @pytest.fixture
 def fake_provider() -> FakeProvider:
     return FakeProvider()
 
 
 @pytest.fixture
-def client(fake_provider: FakeProvider) -> Iterator[TestClient]:
-    """API client whose estimation service talks to ``fake_provider``."""
-    app.dependency_overrides[get_estimation_service] = lambda: EstimationService(fake_provider)
+def client(fake_provider: FakeProvider, fake_cache: FakeCache) -> Iterator[TestClient]:
+    """API client whose estimation service talks to ``fake_provider`` and caches in ``fake_cache``."""
+    service = EstimationService(fake_provider, cache=fake_cache)
+    app.dependency_overrides[get_estimation_service] = lambda: service
     with TestClient(app, raise_server_exceptions=False) as test_client:
         yield test_client
     app.dependency_overrides.clear()

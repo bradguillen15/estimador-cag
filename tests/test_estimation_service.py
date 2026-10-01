@@ -2,14 +2,11 @@
 
 import pytest
 
-from app.config import Settings
 from app.exceptions import LLMProviderError
 from app.prompts.loader import render_estimation_examples, render_estimation_prompt
 from app.schemas.estimations import EstimationRequest
 from app.services.estimation_service import PROMPT_VERSION, EstimationService
 from app.services.llm.base import GenerationMetrics
-from app.services.llm.factory import get_llm_provider
-from app.services.llm.openai import OpenAIProvider
 from tests.conftest import VALID_REQUEST, FakeProvider
 
 REQUEST = EstimationRequest.model_validate(VALID_REQUEST)
@@ -45,27 +42,13 @@ def test_exposes_provider_identity_and_cag_examples() -> None:
     assert service.context_examples() == render_estimation_examples(PROMPT_VERSION)
 
 
-# --- provider factory -------------------------------------------------------------------------
 
+def test_prepare_returns_a_copy_with_the_sanitized_description() -> None:
+    service = EstimationService(FakeProvider())
+    request = REQUEST.model_copy(update={"description": "Portal de reservas, avisar a ana@empresa.com siempre."})
 
-def _settings(provider: str) -> Settings:
-    return Settings(
-        open_api_key="k",
-        antropic_api_key="k",
-        llm_provider=provider,
-        llm_model="gpt-test",
-        app_env="development",
-        log_level="INFO",
-    )
+    prepared = service.prepare(request)
 
-
-@pytest.mark.parametrize("name", ["openai", "OpenAI", " openai "])
-def test_factory_builds_the_configured_provider(name: str) -> None:
-    provider = get_llm_provider(_settings(name))
-    assert isinstance(provider, OpenAIProvider)
-    assert provider.model == "gpt-test"
-
-
-def test_factory_rejects_unknown_providers() -> None:
-    with pytest.raises(ValueError, match="Unsupported LLM_PROVIDER"):
-        get_llm_provider(_settings("llama-local"))
+    assert prepared.description == "Portal de reservas, avisar a [EMAIL] siempre."
+    assert "ana@empresa.com" in request.description  # the original is untouched
+    assert prepared.project_type == request.project_type

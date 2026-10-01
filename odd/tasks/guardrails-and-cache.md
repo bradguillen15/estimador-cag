@@ -1,0 +1,88 @@
+# Feature: guardrails-and-cache
+
+## Objective
+Port the relevant pieces of the course reference (`../ai-engineering`, `origin/session_4_live`,
+`estimator/app/`) into this API: input guardrails, an output check, an exact response cache, a
+semantic response cache and prompt improvements — adapted to our Markdown + SSE flow and layering.
+
+## Problem / why
+- No protection before the LLM: prompt-injection only defended inside the prompt; PII from meeting
+  notes goes straight to the provider; no moderation.
+- Every identical request pays a full LLM call (Anthropic prompt caching only discounts tokens).
+- Prompt v2 lacks a confidence signal, an explicit "items first, then sum" rule, discovery /
+  deployment phases, and a "do not invent deadlines/stakeholders" rule.
+- `description` max 2000 chars is too short for meeting notes / transcriptions.
+
+## Scope (authorized, single PR `feat/litellm-provider`, one commit per task)
+See tasks. User decision 2026-09-30: everything in this PR, separate commits.
+
+## Out of scope
+Structured JSON output (Instructor) — our contract stays Markdown over SSE. No Redis in CI (fakes).
+
+## Constraints
+- AGENTS.md layering: services never import FastAPI; routers map domain errors to status codes;
+  env only in `config.py` + `.env.example`; UI strings/errors reaching UI in Spanish, code in English.
+- LiteLLM stays the only LLM SDK: moderation and embeddings go through `litellm` inside
+  `app/services/llm/` (rule relaxed from "only litellm.py" to "only `app/services/llm/`"; update AGENTS.md).
+- Guardrails run BEFORE any cache lookup (a rejected input is never served from cache).
+- Streaming: input rejection must happen before the SSE response starts (→ HTTP 400, not an SSE event).
+- Only outputs that pass the output check are cached; a stream that errors is never cached.
+- Cache keys include prompt version, model list, detail, format and **language**.
+- Redis unavailable → log a warning and degrade to no cache; never fail the request.
+- Tests never hit Redis, LiteLLM or OpenAI: in-memory fakes / patched functions.
+- Pre-commit hook needs Node 24 in PATH (see Engram discovery).
+
+## Decisions (defaults chosen by the orchestrator, reported to the user)
+- Prompt-injection heuristics: English + Spanish patterns → reject (HTTP 400, Spanish message).
+- PII (email, phone, IBAN): **redact** with placeholders before the LLM, do not reject.
+- Moderation: `litellm.moderation` (OpenAI), toggle `MODERATION_ENABLED`, fail-open with a warning log.
+- Exact cache: Redis, SHA-256 key, TTL setting; `CACHE_ENABLED` / `REDIS_URL`.
+- Semantic cache: redisvl + Redis Stack, embeddings via `litellm.embedding`; disabled by default,
+  `SEMANTIC_CACHE_LOG_ONLY=true` by default, threshold 0.92; embed once per request.
+- Output check: closing block (total label) or insufficient-information heading present; failures
+  are logged and not cached (the stream is already sent, it is not rewritten).
+- Prompt v3 + `PROMPT_VERSION` bump; examples updated consistently.
+- `description` max length → 20000 (API schema + `web/src/api/types.ts`).
+- TDD: off (source: project default, see litellm-provider.md). Runner: `uv run pytest` / `pnpm test`.
+- RDD: off (global) → ordinary checks only.
+
+## Tasks
+- [x] T1 — Prompt v3 (confidence line, items-then-sum algorithm, discovery/deploy phases, no invented
+      deadlines/stakeholders) + examples + PROMPT_VERSION + tests. Commit `feat(prompts): ...`
+- [x] T2 — Input guardrails (injection es/en reject → 400, PII redaction, moderation via LiteLLM) wired
+      into service for `/estimate` and `/estimate/stream` + tests. Commit `feat(guardrails): ...`
+- [x] T3 — Output check (log + mark not cacheable) + tests. Commit `feat(guardrails): ...`
+- [x] T4 — Exact Redis response cache (hit replays over SSE, store after successful stream) + settings
+      + tests. Commit `feat(cache): ...`
+- [x] T5 — Semantic cache (redisvl, log_only default, LiteLLM embeddings) + settings + tests.
+      Commit `feat(cache): ...`
+- [x] T6 — Description limit 20000 (schema + web mirror + tests). Commit `feat(api): ...`
+- [x] T7 — (README/AGENTS 67c7e79, diagram 9a76f1d, `.env.example` added by the user) Docs: README, AGENTS.md (layer map, litellm rule, recipes), `.env.example`, architecture
+      diagram. Commit `docs: ...`
+
+Route: one delegated writer for T1–T6 (trigger: 2+ non-trivial files per task, 4+ files to map);
+T7 diagram by the parent with the archify skill.
+
+## Acceptance criteria
+- Injection text → 400 on both endpoints with a Spanish message; PII never reaches the provider.
+- Identical second request is served from cache (no provider call) on both endpoints.
+- Redis down → requests still succeed.
+- `pnpm test` passes after every commit; app boots and `/health` ok.
+
+## Checks
+`uv run pytest -q`; `pnpm test:web`; `pnpm lint`; `pnpm build` when web changes; boot + `/health`.
+
+## Progress
+- 2026-09-30: comparison done, scope accepted by the user; document created.
+- 2026-09-30: T1 done: 7ba7290 feat(prompts): add v3 ... (prompt v3, PROMPT_VERSION bump, examples + tests).
+- 2026-09-30: T2 done (input guardrails: injection es/en -> 400, PII redaction, LiteLLM moderation behind a Protocol; wired via the `get_safe_request` dependency so the stream is rejected before it starts). T2 hash: 4538936 feat(guardrails): reject prompt injection... `.env.example` write is denied by permissions: line `MODERATION_ENABLED=false` reported to the parent.
+- 2026-09-30: T3 done (output check in `services/guardrails/output.py`). Commit 83feede feat(guardrails): check the answer structure...
+- 2026-09-30: T4 done (exact Redis cache in `services/cache/`; service pipeline cache -> LLM -> output check -> store; `done` event carries `cache_hit`; `.env.example` write denied, lines reported to the parent). Commit eb47836 feat(cache): serve identical requests...
+- 2026-09-30: T5 done (semantic cache in `services/cache/semantic.py`, embeddings in `services/llm/embeddings.py`; one index per embedding model; disabled + log-only by default). Commit e46fc0c feat(cache): add an opt-in semantic response cache...
+- 2026-09-30: T6 done (description max 20000 in schema + web mirror + tests). Commit f015f04 feat(api): raise the description limit... Final verification: boot + /health ok; stream injection -> HTTP 400.
+- 2026-09-30: verification fixes (A): injection patterns anchored on addressing the assistant, NFKC + zero-width stripping before the injection match, phone redaction requires a phone-like shape; regression tests added.
+- 2026-09-30: verification fixes (B): semantic bucket includes a hash of the LLM model list; setup failure documented as permanent per process (restart to recover).
+- 2026-09-30: verification fixes (C): README and AGENTS.md updated (settings, guardrails, cache, v3, layer map, rules, known debt #7). Diagram and `.env.example` left to the parent.
+- 2026-09-30: diagram 9a76f1d (archify finalize: validate/deliver/check/browser-check passed; visual review not done, advisory 3-bend routes guard→mod, semantic→embedder). T7 open only for `.env.example` (agent writes denied; user applies).
+- 2026-09-30: T7 closed — `.env.example` lines added by the user, committed with this document.
+- 2026-09-30: CodeRabbit review fixes: 505ab90 (optional moderation/semantic-cache config errors degrade), 3b96b6b (v3 medium example 5-8 rows), 1d4f38d (close provider streams on every exit), b4c832d (moderation timeout via bounded OpenAI client), cc9c5af (diagram sources refreshed + 422 mapping).

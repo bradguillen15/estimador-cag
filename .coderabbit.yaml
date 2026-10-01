@@ -31,9 +31,13 @@ reviews:
         Follow AGENTS.md (it is the source of truth for this repo):
         - Layering: routers → services → prompts/config. Routers never build prompts or call an SDK;
           services never import fastapi or raise HTTPException; env vars are read only in app/config.py.
-        - The OpenAI SDK may only be used in app/services/llm/openai.py. SDK exceptions must be
-          translated to LLMProviderError, and error messages returned to clients must not leak provider
+        - litellm may only be imported under app/services/llm/ (litellm.py, moderation.py, embeddings.py);
+          redis / redisvl only under app/services/cache/. SDK exceptions must be translated to domain
+          errors (LLMProviderError), and error messages returned to clients must not leak provider
           details or secrets.
+        - Input guardrails run in the get_safe_request dependency, before any cache lookup and before a
+          streaming response starts (rejections are plain HTTP 400/422, never SSE events). Cache and
+          moderation failures must degrade gracefully, never fail the request.
         - Collaborators are injected with FastAPI Depends (app/dependencies.py), not created at import time.
         - Type hints on every signature. Code, comments, docstrings, logs and docs in English; Spanish only
           for text the end user sees (UI copy, error messages that reach the UI).
@@ -46,7 +50,8 @@ reviews:
         Changes that alter model output should come with a new version folder and a PROMPT_VERSION bump.
     - path: "tests/**"
       instructions: |
-        pytest suite. Tests must never call a real LLM: use FakeProvider or the fake SDK client.
+        pytest suite. Tests must never call a real LLM, moderation, embedding or Redis: use FakeProvider,
+        the fake SDK client and the in-memory cache fakes.
         Assert on contracts (status codes, schemas, error mapping), never on exact LLM wording.
     - path: "web/src/**/*.{ts,tsx}"
       instructions: |

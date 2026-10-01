@@ -13,7 +13,13 @@ from app.schemas.estimations import EstimationRequest
 _PROMPTS_ROOT = Path(__file__).resolve().parent
 
 # Active prompt version: the folder under estimation/ that requests are rendered with.
-PROMPT_VERSION = "v2"
+PROMPT_VERSION = "v3"
+
+
+@lru_cache
+def available_prompt_versions() -> tuple[str, ...]:
+    """Versions discovered from the folders under ``estimation/`` (computed once)."""
+    return tuple(sorted(p.name for p in (_PROMPTS_ROOT / "estimation").iterdir() if p.is_dir()))
 
 
 @lru_cache

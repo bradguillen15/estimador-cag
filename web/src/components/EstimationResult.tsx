@@ -46,6 +46,7 @@ export function EstimationResult({ state }: { state: EstimationState }) {
 }
 
 function MetaChips({ meta }: { meta: GenerationMeta }) {
+  const t = useT()
   const chips: ReactNode[] = [
     <>
       prompt_version <b className="font-medium text-ink">{meta.prompt_version}</b>
@@ -58,6 +59,11 @@ function MetaChips({ meta }: { meta: GenerationMeta }) {
 
   return (
     <div className="flex flex-wrap gap-1.5">
+      {meta.cache_hit && (
+        <span className="rounded-full bg-accent-soft px-[9px] py-[3px] font-mono text-[11.5px] font-medium text-accent shadow-[0_0_0_1px_color-mix(in_srgb,var(--accent)_30%,transparent)]">
+          {t('result.cached')}
+        </span>
+      )}
       {chips.map((chip, index) => (
         <span key={index} className="rounded-full bg-field px-[9px] py-[3px] font-mono text-[11.5px] text-muted shadow-[0_0_0_1px_var(--line)]">
           {chip}

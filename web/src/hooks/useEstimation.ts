@@ -33,7 +33,7 @@ export function useEstimation() {
     try {
       if (!stream) {
         const response = await createEstimate(request, controller.signal)
-        setState({ status: 'done', text: response.text, meta: { prompt_version: response.prompt_version }, error: null })
+        setState({ status: 'done', text: response.text, meta: { prompt_version: response.prompt_version, cache_hit: response.cache_hit }, error: null })
         return
       }
 
