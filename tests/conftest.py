@@ -10,6 +10,10 @@ os.environ.update(
         "ANTHROPIC_API_KEY": "test-key",
         "APP_ENV": "development",
         "LOG_LEVEL": "WARNING",
+        # Optional features off regardless of the developer's .env; tests opt in explicitly.
+        "MODERATION_ENABLED": "false",
+        "CACHE_ENABLED": "false",
+        "SEMANTIC_CACHE_ENABLED": "false",
     }
 )
 
