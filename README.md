@@ -157,7 +157,7 @@ Small open-source repos are limited to about one CodeRabbit review per hour.
 | Method | Path | Response |
 |--------|------|----------|
 | `GET` | `/health` | `{"status": "ok"}` |
-| `POST` | `/api/v1/estimate[?prompt_version=v2]` | `EstimationResponse` (`text`, `prompt_version`) |
+| `POST` | `/api/v1/estimate[?prompt_version=v2]` | `EstimationResponse` (`text`, `prompt_version`, `cache_hit`) |
 | `POST` | `/api/v1/estimate/stream[?prompt_version=v2]` | SSE events: `token`, `done` (model, tokens, latency, `cache_hit`, `prompt_version`), `error` |
 | `GET` | `/api/v1/context[?prompt_version=v2]` | `PromptContextResponse` (`prompt_version`, `examples_markdown`) |
 

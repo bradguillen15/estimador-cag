@@ -51,6 +51,7 @@ class EstimationRequest(BaseModel):
 class EstimationResponse(BaseModel):
     text: str
     prompt_version: str
+    cache_hit: bool = False  # answered from the response cache, no LLM call
 
 
 class PromptContextResponse(BaseModel):

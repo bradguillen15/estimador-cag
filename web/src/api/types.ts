@@ -21,6 +21,8 @@ export interface EstimationRequest extends EstimationInput {
 export interface EstimationResponse {
   text: string
   prompt_version: string
+  /** True when the answer was served from the response cache (no LLM call). */
+  cache_hit: boolean
 }
 
 export interface PromptContext {

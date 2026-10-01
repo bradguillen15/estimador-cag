@@ -40,8 +40,9 @@ def get_prompt_context(service: Service, prompt_version: PromptVersion) -> Promp
 # Domain errors are mapped to HTTP status codes by the exception handlers in main.py.
 @router.post("/estimate", response_model=EstimationResponse)
 def create_estimate(body: SafeRequest, service: Service, prompt_version: PromptVersion) -> EstimationResponse:
-    text = service.generate(body, prompt_version)
-    return EstimationResponse(text=text, prompt_version=prompt_version)
+    metrics = GenerationMetrics(model=service.model)
+    text = service.generate(body, prompt_version, metrics=metrics)
+    return EstimationResponse(text=text, prompt_version=prompt_version, cache_hit=metrics.cache_hit)
 
 
 @router.post("/estimate/stream", response_class=EventSourceResponse)

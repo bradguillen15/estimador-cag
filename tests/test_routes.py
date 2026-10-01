@@ -49,7 +49,7 @@ def test_estimate_returns_the_model_text_and_prompt_version(client: TestClient, 
     response = client.post("/api/v1/estimate", json=VALID_REQUEST)
 
     assert response.status_code == 200
-    assert response.json() == {"text": fake_provider.text, "prompt_version": PROMPT_VERSION}
+    assert response.json() == {"text": fake_provider.text, "prompt_version": PROMPT_VERSION, "cache_hit": False}
     _, user_prompt = fake_provider.calls[0]
     assert VALID_REQUEST["description"] in user_prompt
 

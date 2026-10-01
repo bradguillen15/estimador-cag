@@ -32,7 +32,7 @@ async function fillForm() {
 
 describe('App', () => {
   it('uses the JSON endpoint by default and shows the estimation', async () => {
-    vi.mocked(createEstimate).mockResolvedValue({ text: '## Estimación: Gimnasio', prompt_version: 'v1' })
+    vi.mocked(createEstimate).mockResolvedValue({ text: '## Estimación: Gimnasio', prompt_version: 'v1', cache_hit: false })
     const user = await fillForm()
 
     await user.click(screen.getByRole('button', { name: 'Generar estimación' }))
@@ -57,7 +57,7 @@ describe('App', () => {
   })
 
   it('sends the saved language and the newly selected language on the next request', async () => {
-    vi.mocked(createEstimate).mockResolvedValue({ text: '## Estimación: Gimnasio', prompt_version: 'v2' })
+    vi.mocked(createEstimate).mockResolvedValue({ text: '## Estimación: Gimnasio', prompt_version: 'v2', cache_hit: false })
     const user = await fillForm()
 
     await user.click(screen.getByRole('button', { name: 'Generar estimación' }))
@@ -71,7 +71,7 @@ describe('App', () => {
 
   it('starts in English and dark with a fresh browser (no saved preferences)', async () => {
     localStorage.clear()
-    vi.mocked(createEstimate).mockResolvedValue({ text: '## Estimate: Gym', prompt_version: 'v3' })
+    vi.mocked(createEstimate).mockResolvedValue({ text: '## Estimate: Gym', prompt_version: 'v3', cache_hit: false })
     const user = userEvent.setup()
     render(<App />)
 
@@ -126,7 +126,7 @@ describe('App', () => {
   it('shows API failures and lets the user retry', async () => {
     vi.mocked(createEstimate)
       .mockRejectedValueOnce(new Error('Error HTTP 502: El proveedor LLM tardó demasiado en responder.'))
-      .mockResolvedValueOnce({ text: '## Estimación: Reintento', prompt_version: 'v1' })
+      .mockResolvedValueOnce({ text: '## Estimación: Reintento', prompt_version: 'v1', cache_hit: false })
     const user = await fillForm()
     const submit = screen.getByRole('button', { name: 'Generar estimación' })
 

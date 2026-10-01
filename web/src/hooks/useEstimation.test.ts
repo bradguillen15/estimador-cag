@@ -27,15 +27,15 @@ describe('useEstimation', () => {
   })
 
   it('shows loading, then the JSON result with its prompt version', async () => {
-    let resolve!: (value: { text: string; prompt_version: string }) => void
+    let resolve!: (value: { text: string; prompt_version: string; cache_hit: boolean }) => void
     createEstimateMock.mockReturnValue(new Promise((r) => (resolve = r)))
     const { result } = renderHook(() => useEstimation())
 
     act(() => void result.current.run(REQUEST, false))
     expect(result.current.state.status).toBe('loading')
 
-    await act(async () => resolve({ text: '## Estimación', prompt_version: 'v1' }))
-    expect(result.current.state).toEqual({ status: 'done', text: '## Estimación', meta: { prompt_version: 'v1' }, error: null })
+    await act(async () => resolve({ text: '## Estimación', prompt_version: 'v1', cache_hit: false }))
+    expect(result.current.state).toEqual({ status: 'done', text: '## Estimación', meta: { prompt_version: 'v1', cache_hit: false }, error: null })
     expect(createEstimateMock).toHaveBeenCalledWith(REQUEST, expect.any(AbortSignal))
     expect(streamEstimateMock).not.toHaveBeenCalled()
   })
@@ -88,7 +88,7 @@ describe('useEstimation', () => {
           signal!.addEventListener('abort', () => reject(new DOMException('aborted', 'AbortError')))
         }),
     )
-    createEstimateMock.mockResolvedValueOnce({ text: 'segunda', prompt_version: 'v1' })
+    createEstimateMock.mockResolvedValueOnce({ text: 'segunda', prompt_version: 'v1', cache_hit: false })
     const { result } = renderHook(() => useEstimation())
 
     act(() => void result.current.run(REQUEST, false))

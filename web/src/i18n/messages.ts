@@ -61,6 +61,7 @@ const es = {
 
   'result.heading': 'Estimación',
   'result.generating': 'Generando estimación',
+  'result.cached': 'desde caché',
 
   'error.connect':
     'No se pudo conectar a la API en {api}. Levanta el servicio con: uv run uvicorn app.main:app --reload',
@@ -126,6 +127,7 @@ const en: { [K in keyof typeof es]: string } = {
 
   'result.heading': 'Estimate',
   'result.generating': 'Generating estimate',
+  'result.cached': 'cached',
 
   'error.connect':
     'Could not connect to the API at {api}. Start the service with: uv run uvicorn app.main:app --reload',

@@ -28,7 +28,7 @@
 ## Tasks
 - [x] T1 — docker-compose + dev.mjs + README/AGENTS. Commit `feat(dev): ...`
       (route: delegated writer; trigger: 2+ non-trivial files)
-- [ ] T2 — cache_hit in `/estimate` + UI chip + tests + README. Commit `feat: ...` (same writer)
+- [x] T2 — cache_hit in `/estimate` + UI chip + tests + README. Commit `feat: ...` (same writer)
 
 ## Acceptance criteria
 - With both flags false (env or `.env`), `pnpm dev` does not touch Docker.
@@ -41,3 +41,6 @@
 
 ## Progress
 - 2026-09-30: document created.
+- 2026-09-30: T1 done in 061d408; T2 in this commit (pytest, test:web, lint, build green). Note: two
+  pytest tests (`test_cache` factory no-op, `test_semantic_cache` defaults) read the local `.env`
+  and fail when it enables a cache; run with `CACHE_ENABLED=false SEMANTIC_CACHE_ENABLED=false`.

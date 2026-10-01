@@ -191,7 +191,7 @@ def test_estimate_second_call_is_a_cache_hit_without_calling_the_provider(
     first = client.post("/api/v1/estimate", json=VALID_REQUEST).json()
     second = client.post("/api/v1/estimate", json=VALID_REQUEST).json()
 
-    assert first == second
+    assert first["text"] == second["text"]
     assert len(good_provider.calls) == 1
 
 
@@ -206,6 +206,15 @@ def test_stream_replays_a_cached_answer_and_marks_the_done_event(
     assert live[-1][1]["cache_hit"] is False
     done = replay[-1]
     assert done[0] == "done" and done[1]["cache_hit"] is True and done[1]["prompt_version"] == PROMPT_VERSION
+
+
+def test_blocking_estimate_reports_cache_hit(client: TestClient, good_provider: FakeProvider) -> None:
+    first = client.post("/api/v1/estimate", json=VALID_REQUEST).json()
+    second = client.post("/api/v1/estimate", json=VALID_REQUEST).json()
+
+    assert first["cache_hit"] is False
+    assert second["cache_hit"] is True and second["text"] == first["text"]
+    assert len(good_provider.calls) == 1
 
 
 def test_blocking_and_stream_share_the_same_cache_entry(client: TestClient, good_provider: FakeProvider) -> None:

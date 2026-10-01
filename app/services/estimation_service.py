@@ -59,14 +59,24 @@ class EstimationService:
         safe_description = self._guardrails.check(request.description)
         return request.model_copy(update={"description": safe_description})
 
-    def generate(self, request: EstimationRequest, prompt_version: str = PROMPT_VERSION) -> str:
+    def generate(
+        self,
+        request: EstimationRequest,
+        prompt_version: str = PROMPT_VERSION,
+        metrics: GenerationMetrics | None = None,
+    ) -> str:
+        """Returns the estimate; ``metrics.cache_hit`` is set when it came from a cache."""
         key = make_cache_key(request, prompt_version, self._cache_models)
         cached = self._cache.get(key)
         if cached is not None:
+            if metrics is not None:
+                metrics.cache_hit = True
             return cached.text
 
         semantic = self._semantic.lookup(request, prompt_version)
         if semantic.answer is not None:
+            if metrics is not None:
+                metrics.cache_hit = True
             return semantic.answer.text
 
         system, user = render_estimation_prompt(request, prompt_version)
