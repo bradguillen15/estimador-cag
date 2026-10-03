@@ -1,5 +1,5 @@
 {
-  "name": "estimador-cag",
+  "name": "estimator-cag",
   "private": true,
   "description": "Root task runner: orchestrates the Python API (uv) and the React UI (web/).",
   "packageManager": "pnpm@10.33.1",
@@ -13,14 +13,14 @@
     "prepare": "husky",
     "dev": "node scripts/dev.mjs",
     "dev:api": "uv run uvicorn app.main:app --reload",
-    "dev:web": "pnpm --filter estimador-web dev",
-    "build": "pnpm --filter estimador-web build",
-    "lint": "pnpm --filter estimador-web lint",
+    "dev:web": "pnpm --filter estimator-web dev",
+    "build": "pnpm --filter estimator-web build",
+    "lint": "pnpm --filter estimator-web lint",
     "test": "pnpm run test:api && pnpm run test:web",
     "test:api": "uv run pytest",
-    "test:web": "pnpm --filter estimador-web test",
-    "test:watch": "pnpm --filter estimador-web test:watch",
-    "test:coverage": "uv run pytest --cov=app --cov-report=term-missing && pnpm --filter estimador-web test:coverage"
+    "test:web": "pnpm --filter estimator-web test",
+    "test:watch": "pnpm --filter estimator-web test:watch",
+    "test:coverage": "uv run pytest --cov=app --cov-report=term-missing && pnpm --filter estimator-web test:coverage"
   },
   "devDependencies": {
     "husky": "^9.1.7",

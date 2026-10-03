@@ -14,7 +14,7 @@ from app.routers import estimations
 configure_logging()
 
 app = FastAPI(
-    title="Estimador CAG",
+    title="Estimator CAG",
     description=(
         "Software project effort estimation with CAG (Cache-Augmented Generation). "
         "Takes a project description plus type, detail level, output format and response "

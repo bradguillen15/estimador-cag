@@ -5,7 +5,7 @@ export type Locale = ResponseLanguage
 type Vars = Record<string, string | number>
 
 const es = {
-  'brand.name': 'Estimador CAG',
+  'brand.name': 'Estimator CAG',
   'hero.badge': 'Cache-Augmented Generation',
   'hero.title.before': 'Estimador de',
   'hero.title.em': 'software',

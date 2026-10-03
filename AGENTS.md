@@ -1,6 +1,6 @@
 # AGENTS.md
 
-Operating guide for AI agents and humans working on **estimador-cag**.
+Operating guide for AI agents and humans working on **estimator-cag**.
 Read this before writing code. It defines *where* things go, *why*, and *what "done" means*.
 
 ---
@@ -18,7 +18,7 @@ POST /api/v1/estimate[/stream]  →  router (get_safe_request: input guardrails)
 ```
 
 The interactive diagram of this flow, with file/line sources per node, is
-[viewable here](https://htmlpreview.github.io/?https://github.com/bradguillen15/estimador-cag/blob/main/docs/architecture/estimation-flow/estimation-flow.html)
+[viewable here](https://htmlpreview.github.io/?https://github.com/bradguillen15/estimator-cag/blob/main/docs/architecture/estimation-flow/estimation-flow.html)
 (source: `docs/architecture/estimation-flow/`; see §5.5 to regenerate it).
 
 Everything in this document exists to keep that flow easy to extend (more providers, more endpoints,
@@ -48,7 +48,7 @@ uv run uvicorn app.main:app --reload       # run API (http://127.0.0.1:8000/docs
 pnpm dev:web                               # run UI only (http://localhost:5173, proxies /api → :8000)
 pnpm build                                 # build UI → web/dist, served by FastAPI at /
 pnpm lint                                  # ESLint (build also type-checks with tsc)
-pnpm --filter estimador-web add <pkg>      # add a UI dependency (never npm install)
+pnpm --filter estimator-web add <pkg>      # add a UI dependency (never npm install)
 uv add <pkg>                               # add a dependency (never edit pyproject by hand)
 ```
 

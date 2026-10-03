@@ -379,7 +379,7 @@ wheels = [
 ]
 
 [[package]]
-name = "estimador-cag"
+name = "estimator-cag"
 version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
