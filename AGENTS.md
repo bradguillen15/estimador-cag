@@ -299,6 +299,9 @@ source) and the rendered `<name>.html` are versioned; archify's `*.finalize*.jso
   prompt pipeline, error mapping), ask the agent to update `candidate.json` from the code and re-run
   archify's `finalize` with `--repo-root .`, then commit both files with the change.
 - Every node cites its source files and lines; keep them pointing at real code, never at plans.
+- `estimation-flow` is the **overview**: keep it to the main request path (~10 nodes). Plumbing
+  (settings, DI, Protocols, error handlers) stays out. When a feature grows its own internals, give
+  it a separate diagram in `docs/architecture/<feature>/` and keep a single box for it in the overview.
 
 ---
 
@@ -379,7 +382,9 @@ only through a PR whose `api-tests` and `web-tests` checks pass (admins included
 required status checks — renaming them blocks every merge until branch protection is updated.
 CodeRabbit reviews PRs using `.coderabbit.yaml`, which points reviewers at the rules in this file.
 While the repo has fewer than 10 stars CodeRabbit does **not** auto-review: request it on each PR
-with `@coderabbitai review` (or `@coderabbitai full review`). It is advisory, not a required check.
+with `@coderabbitai review` (or `@coderabbitai full review`, or tick **Trigger review** in its status
+comment). It is advisory, not a required check, and small open-source repos get about one review
+per hour. PRs must also be up to date with `main` before merging.
 
 Pre-commit (Husky + lint-staged, installed by `pnpm install` via `prepare`) runs **the same checks as
 CI**: both call `scripts/ci/api.sh` and `scripts/ci/web.sh`, against the staged snapshot only. To
