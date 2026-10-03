@@ -109,9 +109,9 @@ describe('Sidebar', () => {
   it('renders the brand badge with a decorative icon instead of a letter', () => {
     renderSidebar()
 
-    const brand = screen.getByText('Estimador CAG')
+    const brand = screen.getByText('Estimator CAG')
     expect(brand.querySelector('svg[aria-hidden="true"]')).toBeInTheDocument()
-    expect(brand.textContent?.trim()).toBe('Estimador CAG')
+    expect(brand.textContent?.trim()).toBe('Estimator CAG')
   })
 
   it('reports the language the user picks', async () => {

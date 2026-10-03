@@ -1,5 +1,5 @@
 [project]
-name = "estimador-cag"
+name = "estimator-cag"
 version = "0.1.0"
 description = "Software effort estimator using CAG (Cache-Augmented Generation)"
 readme = "README.md"

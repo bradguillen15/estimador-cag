@@ -1,4 +1,4 @@
-# estimador-cag
+# estimator-cag
 
 Software project effort estimator using **CAG** (Cache-Augmented Generation): curated example
 estimates are injected into the system prompt, and an LLM turns a project description into a
@@ -12,7 +12,7 @@ Markdown estimate (assumptions, task breakdown, total hours, team and duration).
 - **UI:** React 19 + TypeScript + Tailwind v4 on Vite (`web/`), light/dark and Español/English toggles.
 - **Prompts:** versioned Jinja2 templates (`app/prompts/estimation/v3/`).
 
-**How it works:** [open the interactive estimation flow diagram](https://htmlpreview.github.io/?https://github.com/bradguillen15/estimador-cag/blob/main/docs/architecture/estimation-flow/estimation-flow.html).
+**How it works:** [open the interactive estimation flow diagram](https://htmlpreview.github.io/?https://github.com/bradguillen15/estimator-cag/blob/main/docs/architecture/estimation-flow/estimation-flow.html).
 
 ## Requirements
 

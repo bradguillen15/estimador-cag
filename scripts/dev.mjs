@@ -7,7 +7,7 @@ import { parseEnv } from 'node:util'
 
 const PROCESSES = [
   { name: 'api', color: 36, command: 'uv', args: ['run', 'uvicorn', 'app.main:app', '--reload'] },
-  { name: 'web', color: 35, command: 'pnpm', args: ['--filter', 'estimador-web', 'dev'] },
+  { name: 'web', color: 35, command: 'pnpm', args: ['--filter', 'estimator-web', 'dev'] },
 ]
 
 const children = []

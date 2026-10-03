@@ -2,12 +2,12 @@
   "schema_version": 1,
   "diagram_type": "architecture",
   "meta": {
-    "title": "Estimador CAG Estimation Flow",
+    "title": "Estimator CAG Estimation Flow",
     "output": "docs/architecture/estimation-flow/estimation-flow.html",
     "quality_profile": "showcase",
     "locale": "en",
     "repository": {
-      "url": "git@github.com:bradguillen15/estimador-cag.git",
+      "url": "git@github.com:bradguillen15/estimator-cag.git",
       "link_mode": "local-only",
       "revision": "e8532673963532c62ba172c1e0897310ddc5514d"
     }
